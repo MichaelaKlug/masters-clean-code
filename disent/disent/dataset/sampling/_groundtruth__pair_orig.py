@@ -22,10 +22,10 @@
 #  SOFTWARE.
 #  ~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~
 
-from typing import Optional
+from typing import Optional,List,Tuple
 
 import numpy as np
-
+import random
 from disent.dataset.data import GroundTruthData
 from disent.dataset.sampling._base import BaseDisentSampler
 from disent.dataset.util.state_space import StateSpace
@@ -63,9 +63,13 @@ class GroundTruthPairOrigSampler(BaseDisentSampler):
     def _sample_idx(self, idx):
         f0, f1 = self.datapoint_sample_factors_pair(idx)
         return (
-            self._state_space.pos_to_idx(f0),
-            self._state_space.pos_to_idx(f1),
+            (self._state_space.pos_to_idx(f0),'first'),
+            (self._state_space.pos_to_idx(f1),'second'),
         )
+        # return (
+        #         self._state_space.pos_to_idx(f0),
+        #         self._state_space.pos_to_idx(f1),
+        #     )
 
     def datapoint_sample_factors_pair(self, idx):
         """
@@ -78,6 +82,131 @@ class GroundTruthPairOrigSampler(BaseDisentSampler):
         next_factors, k = _sample_k_differing(sampled_factors, self._state_space, k=self.p_k)
         # return the samples
         return sampled_factors, next_factors
+
+class GroundTruthPairOrigSamplerUnlock(BaseDisentSampler):
+    
+    def uninit_copy(self) -> "GroundTruthPairOrigSampler":
+        return GroundTruthPairOrigSampler(p_k=self.p_k)
+
+    def __init__(
+        self,
+        # num_differing_factors
+        p_k: int = 1,
+    ):
+        """
+        Sampler that emulates choosing factors like:
+        https://github.com/google-research/disentanglement_lib/blob/master/disentanglement_lib/methods/weak/train_weak_lib.py
+        """
+        super().__init__(num_samples=2)
+        # DIFFERING FACTORS
+        self.p_k = p_k
+        # dataset variable
+        self._state_space: Optional[StateSpace] = None
+        self.count=0
+        self.total_count=0
+
+    def _init(self, dataset):
+        assert isinstance(
+            dataset, GroundTruthData
+        ), f"dataset must be an instance of {repr(GroundTruthData.__class__.__name__)}, got: {repr(dataset)}"
+        self._state_space = dataset.state_space_copy()
+
+    # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - #
+    # CORE                                                                  #
+    # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - #
+
+    def _sample_idx(self, idx):
+        self.total_count+=2
+        f0, f1 = self.datapoint_sample_factors_pair(idx)
+        # if (f0==f1).all():
+        #     self.count+=1
+        #     print('duplicates = ',self.count)
+        #     with open("indices.txt", "a") as f:
+        #         f.write(f"{idx}\n")  # Add newline after each entry
+        # print('total = ',self.total_count)
+        return (
+            self._state_space.pos_to_idx(f0),
+            self._state_space.pos_to_idx(f1),
+        )
+
+    def datapoint_sample_factors_pair(self, idx):
+        """
+        This function is based on _sample_weak_pair_factors()
+        Except deterministic for the first item in the pair, based off of idx.
+        """
+        # print('index is ', idx)
+        # randomly sample the first observation -- In our case we just use the idx
+        indices=[0,1,2,3]
+        sampled_factors = self._state_space.idx_to_pos(idx)
+        
+
+        """
+        Code to remove 'illegal' factors - where agent and key positions are the same
+        from the sampled and next factors.
+
+        """
+
+
+        while sampled_factors[0]==sampled_factors[4] and sampled_factors[1]==sampled_factors[5]:
+            new_idx = random.randint(0, 4095)
+            sampled_factors = self._state_space.idx_to_pos(new_idx)
+
+
+        # sample the next observation with k differing factors
+        next_factors, k = _sample_k_differing(sampled_factors, self._state_space, k=self.p_k)
+
+        while next_factors[0]==next_factors[4] and next_factors[1]==next_factors[5]:
+            next_factors, k = _sample_k_differing(sampled_factors, self._state_space, k=self.p_k)
+          
+        # return the samples
+        return sampled_factors, next_factors
+
+class RlSampler(BaseDisentSampler):
+    def uninit_copy(self) -> "RlSampler":
+        return RlSampler(p_k=self.p_k)
+    
+
+    def __init__(
+        self,
+    ):
+        """
+        Sampler that emulates choosing factors like:
+        https://github.com/google-research/disentanglement_lib/blob/master/disentanglement_lib/methods/weak/train_weak_lib.py
+        """
+        super().__init__(num_samples=2)
+        # dataset variable
+        print('using rl sampler')
+        self._state_space: Optional[StateSpace] = None
+
+    def _init(self, dataset):
+        assert isinstance(
+            dataset, GroundTruthData
+        ), f"dataset must be an instance of {repr(GroundTruthData.__class__.__name__)}, got: {repr(dataset)}"
+        self._state_space = dataset.state_space_copy()
+
+    # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - #
+    # CORE                                                                  #
+    # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - #
+
+    def _sample_idx(self, idx):
+        #print('rl sampling unlock factors')
+        sampled_factors = self._state_space.idx_to_pos(idx)
+
+        """
+        Code to remove 'illegal' factors - where agent and key positions are the same
+        from the sampled and next factors.
+
+        """
+        # print('sampled factors are ', sampled_factors)
+        new_idx=idx
+        # while sampled_factors[0]==sampled_factors[4] and sampled_factors[1]==sampled_factors[5]:
+        #     new_idx = random.randint(0, 4095)
+        #     sampled_factors = self._state_space.idx_to_pos(new_idx)
+
+        # return the samples
+        # return (new_idx,-1*new_idx)
+        return (new_idx,'first'),(-1*new_idx,'second')
+
 
 
 def _sample_k_differing(factors, state_space: StateSpace, k=1):
