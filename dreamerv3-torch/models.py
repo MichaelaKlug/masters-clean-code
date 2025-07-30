@@ -1,11 +1,12 @@
 import copy
 import torch
 from torch import nn
-
+import random
 import networks
 import tools
-
+from collections import deque
 to_np = lambda x: x.detach().cpu().numpy()
+torch.autograd.set_detect_anomaly(True)
 
 
 class RewardEMA:
@@ -104,8 +105,86 @@ class WorldModel(nn.Module):
             reward=config.reward_head["loss_scale"],
             cont=config.cont_head["loss_scale"],
         )
+        self._deters_q = deque()
+        self._max_q_length=10000
+        self._obs_q = deque()
+  
+    
+    def adag_loss(self,post,stoch,obs):
+        # print('CALLING ADAG LOSS')
+        # post is  dict_keys(['stoch', 'deter', 'logit'])
+        # obs is  dict_keys(['image', 'is_first', 'is_last', 'is_terminal', 'reward', 'discount', 'action', 'logprob', 'cont'])
+       
+        
+        # print('post is ', post['stoch'].shape)
+        # print('obs is ', obs['image'].shape)
+        # print('stoch type is ', type(post['stoch']))
+        # dist = lambda x: self.dynamics.get_dist(x)
+        # post=dist(post)
+        # print('now post is ', type(post))
+        # Here we want to take the current zt (post['stoch']- confirm (?)) and get another obs
+        # from a buffer of obs, get the zt of that and then perform the adag loss between these 2
+        # zts 
 
+
+        # For the buffer we add current obs into buffer and then just take a random pair each time 
+        # Have a max buffer length, once hit this max we do a first in first out policy 
+
+        # One have post['stoch'] for both images call hook_intercept_ds on them and add to loss function
+        
+        # If queue has reached our max queue length then pop off the first element
+        if len(self._deters_q)==self._max_q_length:
+            self._deters_q.popleft()
+            self._obs_q.popleft()
+        
+        
+    
+        # self._deters_q.append(post['deter']) #add deterministic part of current latent state to queue
+        # self._obs_q.append(obs) #add current obs image to queue
+        self._deters_q.append(post['deter'].detach().clone())
+        self._obs_q.append(copy.deepcopy(obs))
+
+
+        rand_index = random.randint(0, len(self._deters_q) - 1) #sample a random index from the queue
+
+        # now that we are storing the deterministic h and the image x , we need to recalculate the stoch latent
+        deter=self._deters_q[rand_index]  #get second latent for pair
+        pair_obs=self._obs_q[rand_index] #get corresponding second image for pair
+
+        # be careful and check if this is setting it correctly
+        obs = obs.copy()
+        obs['image'] = pair_obs['image'].clone()
+
+        embed = self.encoder(obs)
+        
+        #not sending in h here, wrong, need to
+        #can directly call obs_step(...) for clarity.
+        # post_pair, prior_pair = self.dynamics.observe( # OVER HERE MAKE SURE IF POST IS STOCH OR WE NEED POST['STOCH']
+        #     embed, obs["action"], obs["is_first"]
+        # )
+
+        stoch_pair=self.dynamics.get_buffer_stoch(embed,deter)
+        #xs, xs_targ = self._get_xs_and_targs(batch, batch_idx)
+
+        # FORWARD
+        # -~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~- #
+        # latent distribution parameterizations
+        #ds_posterior, ds_prior = map_all(self.encode_dists, xs, collect_returned=True)
+        ds_posterior=(stoch,stoch_pair) #according to the hook intercept ds, d0_posterior, d1_posterior = ds_posterior
+
+        # print('types are ', type(stoch), type(stoch_pair))
+        # [HOOK] intercept latent parameterizations
+        #ds_posterior, ds_prior, logs_intercept_ds = self.hook_intercept_ds(ds_posterior, ds_prior)
+        ds_posterior= self.dynamics.hook_intercept_ds(ds_posterior)
+        zs_sampled = tuple(d.sample() for d in ds_posterior)
+        # sample from dists
+        # we use d.sample() here because dreamer code has implemented own tricks for categorical variables
+        # look in tools.py at sample method in class OneHotDist
+        
+        return zs_sampled[0].detach() #we only want those sampled from the augmented 'orig' distribution?
+  
     def _train(self, data):
+        # print('ARE WE TRAINING YET')
         # action (batch_size, batch_length, act_dim)
         # image (batch_size, batch_length, h, w, ch)
         # reward (batch_size, batch_length)
@@ -114,16 +193,41 @@ class WorldModel(nn.Module):
 
         with tools.RequiresGrad(self):
             with torch.cuda.amp.autocast(self._use_amp):
+                # print('what is data shape ',data['image'].shape)
                 embed = self.encoder(data)
-                post, prior = self.dynamics.observe(
+                post, prior = self.dynamics.observe( # OVER HERE MAKE SURE IF POST IS STOCH OR WE NEED POST['STOCH']
                     embed, data["action"], data["is_first"]
                 )
+
                 kl_free = self._config.kl_free
                 dyn_scale = self._config.dyn_scale
                 rep_scale = self._config.rep_scale
                 kl_loss, kl_value, dyn_loss, rep_loss = self.dynamics.kl_loss(
                     post, prior, kl_free, dyn_scale, rep_scale
                 )
+
+                # ==============================================================
+                # WANT TO ADD IN OUR ADAG LOSS HERE; NEED TO PASS IN IMAGE
+                # ==============================================================
+                # print('IS OUR LOSS GETTING CALLED')
+                # print('what is post ', post.keys())
+                # print('shape is ', post['logit'].shape)
+                # print('can we do', self.dynamics.get_dist(post))
+                # stoch_dist=self.dynamics.observe( # OVER HERE MAKE SURE IF POST IS STOCH OR WE NEED POST['STOCH']
+                #     embed, data["action"], data["is_first"], return_dist=True
+                # )
+                stoch_dist=self.dynamics.get_dist(post)
+                new_stoch=self.adag_loss(post,stoch_dist,data)
+                post = {**post, 'stoch': new_stoch}
+                # post['stoch']=new_stoch # confirm this is setting value as intended 
+
+             
+                # -~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~- #
+                # # LOSS
+                # # -~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~- #
+                # # compute all the recon losses
+                # recon_loss, logs_recon = self.compute_ave_recon_loss(xs_partial_recon, xs_targ)
+
                 assert kl_loss.shape == embed.shape[:2], kl_loss.shape
                 preds = {}
                 for name, head in self.heads.items():
@@ -176,7 +280,8 @@ class WorldModel(nn.Module):
             k: torch.tensor(v, device=self._config.device, dtype=torch.float32)
             for k, v in obs.items()
         }
-        obs["image"] = obs["image"] / 255.0
+        if 'image' in obs:
+            obs["image"] = obs["image"] / 255.0
         if "discount" in obs:
             obs["discount"] *= self._config.discount
             # (batch_size, batch_length) -> (batch_size, batch_length, 1)
