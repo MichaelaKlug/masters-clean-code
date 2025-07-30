@@ -147,6 +147,8 @@ def simulate(
         reward = [0] * len(envs)
     else:
         step, episode, done, length, obs, agent_state, reward = state
+        # print('what is this obs shape :,', obs[0]['image'].shape)
+    save=True
     while (steps and step < steps) or (episodes and episode < episodes):
         # reset envs if necessary
         if done.any():
@@ -165,6 +167,12 @@ def simulate(
                 obs[index] = result
         # step agents
         obs = {k: np.stack([o[k] for o in obs]) for k in obs[0] if "log_" not in k}
+        if save==True:
+            save=False
+            obs_serializable = {key: value.tolist() if isinstance(value, np.ndarray) else value for key, value in obs.items()}
+            with open("observation.txt", "w") as f:
+                json.dump(obs_serializable, f)  # Save with indentation for readability
+        
         action, agent_state = agent(obs, done, agent_state)
         if isinstance(action, dict):
             action = [
