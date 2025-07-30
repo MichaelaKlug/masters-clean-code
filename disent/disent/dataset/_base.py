@@ -31,6 +31,8 @@ from typing import Sequence
 from typing import TypeVar
 from typing import Union
 
+import json
+
 import numpy as np
 from torch.utils.data import Dataset
 from torch.utils.data import IterableDataset
@@ -43,6 +45,7 @@ from disent.dataset.wrapper import WrappedDataset
 from disent.util.deprecate import deprecated
 from disent.util.iters import LengthIter
 from disent.util.math.random import random_choice_prng
+import matplotlib.pyplot as plt
 
 # ========================================================================= #
 # Helper                                                                    #
@@ -270,6 +273,9 @@ class DisentDataset(Dataset, LengthIter):
         return x
 
     def dataset_get(self, idx, mode: str):
+        # WHEN WE ARE PLOTTING THE SAMPLER HEAT MAPS WE NEED TO SEND INDEX AND WHETHERE IT IS THE START POINT OR THE PAIR
+        idxorig=idx
+        idx=idx[0]
         """
         Gets the specified datapoint, using the specified mode.
         - raw: direct untransformed/unaugmented observations
@@ -291,7 +297,7 @@ class DisentDataset(Dataset, LengthIter):
         except:
             raise TypeError(f"Indices must be integer-like ({type(idx)}): {idx}")
         # we do not support indexing by lists
-        x_raw = self._dataset[idx]
+        x_raw = self._dataset[idxorig]
         # return correct data
         if mode == "pair":
             x_targ = self._datapoint_raw_to_target(x_raw)  # applies self.transform
@@ -388,6 +394,7 @@ class DisentDataset(Dataset, LengthIter):
     @groundtruth_only
     def dataset_sample_batch_with_factors(self, num_samples: int, mode: str, collate: bool = True):
         """Sample a batch of observations X and factors Y."""
+        #factors = self.gt_data.sample_unlock_factors(num_samples)
         factors = self.gt_data.sample_factors(num_samples)
         batch = self.dataset_batch_from_factors(factors, mode=mode, collate=collate)
         return batch, (default_collate(factors) if collate else factors)
