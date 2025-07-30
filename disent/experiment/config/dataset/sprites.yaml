@@ -1,0 +1,19 @@
+defaults:
+  - _data_type_: gt
+
+name: sprites
+
+data:
+  _target_: disent.dataset.data.SpritesData
+  data_root: ${dsettings.storage.data_root}
+  prepare: ${dsettings.dataset.prepare}
+
+transform:
+  _target_: disent.dataset.transform.ToImgTensorF32
+  mean: ${dataset.meta.vis_mean}
+  std: ${dataset.meta.vis_std}
+
+meta:
+  x_shape: [3, 64, 64]
+  vis_mean: [0.09906152159057463, 0.0778614646916404, 0.07261320645877936]
+  vis_std: [0.23002326114948654, 0.19781224128167926, 0.18283647186482793]

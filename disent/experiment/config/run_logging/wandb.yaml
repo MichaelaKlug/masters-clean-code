@@ -1,0 +1,31 @@
+# @package _global_
+
+defaults:
+  - override /hydra/job_logging: colorlog
+  - override /hydra/hydra_logging: colorlog
+
+trainer:
+  log_every_n_steps: 100
+  enable_progress_bar: FALSE  # disable the builtin progress bar
+
+callbacks:
+  progress:
+    _target_: disent.util.lightning.callbacks.LoggerProgressCallback
+    interval: 15
+
+logging:
+  wandb:
+    enabled: TRUE
+  loggers:
+    _target_: lightning.pytorch.loggers.WandbLogger
+    offline: FALSE
+    entity: ${settings.job.user}
+    project: ${settings.job.project}
+    name: ${settings.job.name}
+    group: NULL
+    tags: []
+    save_dir: ${abspath:${dsettings.storage.logs_dir}}  # relative to hydra's original cwd
+    # https://docs.wandb.ai/guides/track/launch#init-start-error
+    settings:
+      _target_: wandb.Settings
+      start_method: "fork"  # fork: linux/macos, thread: google colab

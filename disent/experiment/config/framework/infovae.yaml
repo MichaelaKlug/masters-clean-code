@@ -1,0 +1,26 @@
+defaults:
+  - _input_mode_: single
+
+name: infovae
+
+cfg:
+  _target_: disent.frameworks.vae.InfoVae.cfg
+  # base ae
+  recon_loss: ${settings.framework.recon_loss}
+  loss_reduction: ${settings.framework.loss_reduction}
+  # base vae
+  latent_distribution: ${settings.framework_opt.latent_distribution}
+  # disable various components
+  detach_decoder: FALSE
+  disable_reg_loss: FALSE
+  disable_rec_loss: FALSE
+  disable_aug_loss: FALSE
+  # Info-VAE
+  # info vae is not based off beta vae, but with
+  # the correct parameter choice this can equal the beta vae
+  info_alpha: -0.5
+  info_lambda: 5.0
+  info_kernel: "rbf"  # rbf kernel is the only kernel currently
+
+meta:
+  model_z_multiplier: 2

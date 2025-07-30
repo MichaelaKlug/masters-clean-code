@@ -1,0 +1,46 @@
+defaults:
+  - _self_  # defaults lists override entries from this file!
+  # data
+  - sampling: default__bb
+  - dataset: xyobject
+  - augment: example
+  # system
+  - framework: betavae
+  - model: linear
+  # training
+  - optimizer: adam
+  - schedule: beta_cyclic
+  - metrics: test
+  - run_length: test
+  # logs
+  - run_callbacks: test
+  - run_logging: none
+  # runtime
+  - run_location: local_cpu
+  - run_launcher: local
+  - run_action: train
+  # experiment
+  - run_plugins: default
+
+settings:
+  job:
+    user: 'invalid'
+    project: 'invalid'
+    name: '${framework.name}:${settings.framework.recon_loss}|${dataset.name}:${sampling.name}|${trainer.max_steps}'
+    seed: NULL
+  framework:
+    beta: 0.0316
+    recon_loss: mse
+    loss_reduction: mean  # beta scaling
+  framework_opt:
+    latent_distribution: normal  # only used by VAEs
+  model:
+    z_size: 25
+    weight_init: 'xavier_normal'  # xavier_normal, default
+  dataset:
+    batch_size: 5
+  optimizer:
+    lr: 1e-3
+  checkpoint:
+    # load_checkpoint: NULL   # NULL or string
+    save_checkpoint: TRUE  # boolean, save at end of run -- more advanced checkpointing can be done with a callback!

@@ -1,0 +1,21 @@
+defaults:
+  - _data_type_: gt
+
+name: mpi3d_real
+
+data:
+  _target_: disent.dataset.data.Mpi3dData
+  data_root: ${dsettings.storage.data_root}
+  prepare: ${dsettings.dataset.prepare}
+  in_memory: ${dsettings.dataset.try_in_memory}
+  subset: 'real'
+
+transform:
+  _target_: disent.dataset.transform.ToImgTensorF32
+  mean: ${dataset.meta.vis_mean}
+  std: ${dataset.meta.vis_std}
+
+meta:
+  x_shape: [3, 64, 64]
+  vis_mean: [0.12848577057593918, 0.1648033279246875, 0.13971583058948006]
+  vis_std: [0.09329210572942123, 0.09203401520672466, 0.10322983729706256]

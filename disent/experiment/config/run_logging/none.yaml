@@ -1,0 +1,19 @@
+# @package _global_
+
+defaults:
+  - override /hydra/job_logging: colorlog
+  - override /hydra/hydra_logging: colorlog
+
+trainer:
+  log_every_n_steps: 50
+  enable_progress_bar: FALSE  # disable the builtin progress bar
+
+callbacks:
+  progress:
+    _target_: disent.util.lightning.callbacks.LoggerProgressCallback
+    interval: 5
+
+logging:
+  wandb:
+    enabled: FALSE
+  loggers: NULL

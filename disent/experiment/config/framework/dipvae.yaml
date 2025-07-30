@@ -1,0 +1,27 @@
+defaults:
+  - _input_mode_: single
+
+name: dipvae
+
+cfg:
+  _target_: disent.frameworks.vae.DipVae.cfg
+  # base ae
+  recon_loss: ${settings.framework.recon_loss}
+  loss_reduction: ${settings.framework.loss_reduction}
+  # base vae
+  latent_distribution: ${settings.framework_opt.latent_distribution}
+  # disable various components
+  detach_decoder: FALSE
+  disable_reg_loss: FALSE
+  disable_rec_loss: FALSE
+  disable_aug_loss: FALSE
+  # Beta-VAE
+  beta: ${settings.framework.beta}
+  # DIP-VAE
+  dip_mode: 'ii'  # "i" or "ii"
+  dip_beta: 1.0
+  lambda_d: 1.0  # diagonal weight
+  lambda_od: 0.5  # off diagonal weight
+
+meta:
+  model_z_multiplier: 2
