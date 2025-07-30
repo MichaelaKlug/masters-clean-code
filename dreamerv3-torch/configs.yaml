@@ -111,6 +111,9 @@ dmc_vision:
   encoder: {mlp_keys: '$^', cnn_keys: 'image'}
   decoder: {mlp_keys: '$^', cnn_keys: 'image'}
 
+# Keeping values of hyperparameters same as from Crafter, will I have to change these later??
+
+
 crafter:
   task: crafter_reward
   step: 1e6
@@ -128,6 +131,51 @@ crafter:
   reward_head: {layers: 5}
   cont_head: {layers: 5}
   imag_gradient: 'reinforce'
+
+##### MIGHT NEED TO TUNE HYPERPARAMETERS HERE 
+minigrid:
+  task: minigrid_unlock
+  step: 2e6 #1e6 chatgpt says 2e6
+  action_repeat: 1
+  envs: 2 #1 chatgpt says increase this number trying 2
+  train_ratio: 256 #512 chatgpt says reduce train ratio since minigrid has smaller state space
+
+  #CHANGE HERE TO FALSE WHEN FEEDING IN LATENT VECTOR FROM ADA-GVAE AND NOT ENV IMAGE
+  video_pred_log: false
+
+  dyn_hidden: 512  # Reduce hidden size since MiniGrid has simpler dynamics 1024
+  dyn_deter: 2048  # Reduce deterministic state size 4096
+  units:  512  # Reduce overall network size 1024
+
+  # encoder: {mlp_keys: '$^', cnn_keys: 'image', cnn_depth: 96, mlp_layers: 5, mlp_units: 1024}
+  # decoder: {mlp_keys: '$^', cnn_keys: 'image', cnn_depth: 96, mlp_layers: 5, mlp_units: 1024}
+
+  #*******************************************************************************************
+  #*******************************************************************************************
+  #
+  # WHEN USING PRE-TRAINED ADA-GVAE ENCODER, WANT DV3 ENCODER TO USE MLP NOT CNN LAYERS
+  # SO HAVE TO CHANGE MLP_KEYS TO RECOGNISE OUR LATENT VECTOR AS INPUT
+  #
+  #*******************************************************************************************
+  #*******************************************************************************************
+
+  
+  encoder: {mlp_keys: 'vector', cnn_keys: 'image', cnn_depth: 32, mlp_layers: 3, mlp_units: 512}
+  decoder: {mlp_keys: 'vector', cnn_keys: 'image', cnn_depth: 32, mlp_layers: 3, mlp_units: 512}
+  
+  # actor: {layers: 5, dist: 'onehot', std: 'none'}
+  # value: {layers: 5}
+  # reward_head: {layers: 5}
+  # cont_head: {layers: 5}
+
+  actor: {layers: 3, dist: 'onehot', std: 'none'}  # Keep onehot since MiniGrid has discrete actions
+  value: {layers: 3}
+  reward_head: {layers: 3}
+  cont_head: {layers: 3}
+
+  imag_gradient: 'reinforce'
+
+
 
 atari100k:
   steps: 4e5
