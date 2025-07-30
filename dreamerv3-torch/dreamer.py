@@ -21,6 +21,7 @@ import torch
 from torch import nn
 from torch import distributions as torchd
 
+from minigrid.wrappers import RGBImgPartialObsWrapper, ImgObsWrapper, RGBImgObsWrapper
 
 to_np = lambda x: x.detach().cpu().numpy()
 
@@ -84,13 +85,20 @@ class Dreamer(nn.Module):
         return policy_output, state
 
     def _policy(self, obs, state, training):
+        """
+        The training sequence of images xt is encoded using the CNN.
+        The RSSM uses a sequence of deterministic recurrent states ht. At each step, it computes a posterior
+        stochastic state zt that incorporates information about the current image xt, as well as a prior
+        stochastic state ^zt that tries to predict the posterior without access to the current image
+
+        """
         if state is None:
             latent = action = None
         else:
             latent, action = state
         obs = self._wm.preprocess(obs)
         embed = self._wm.encoder(obs)
-        latent, _ = self._wm.dynamics.obs_step(latent, action, embed, obs["is_first"])
+        latent, _ = self._wm.dynamics.obs_step(latent, action, embed, obs["is_first"]) #returns post and prior --> latent is post
         if self._config.eval_state_mean:
             latent["stoch"] = latent["mean"]
         feat = self._wm.dynamics.get_feat(latent)
@@ -131,6 +139,20 @@ class Dreamer(nn.Module):
                 self._metrics[name] = [value]
             else:
                 self._metrics[name].append(value)
+
+    """
+    Function to get representation of image: pass in obs, get out embedded rep
+    """
+    def _get_rep(self,obs):
+        latent = action = None
+        obs = self._wm.preprocess(obs)
+        embed = self._wm.encoder(obs)
+        print('embed is ', embed)
+        latent, _ = self._wm.dynamics.obs_step(latent, action, embed, obs["is_first"])
+        if self._config.eval_state_mean:
+            latent["stoch"] = latent["mean"]
+        feat = self._wm.dynamics.get_feat(latent)
+        return embed,feat
 
 
 def count_steps(folder):
@@ -193,6 +215,90 @@ def make_env(config, mode, id):
 
         env = minecraft.make_env(task, size=config.size, break_speed=config.break_speed)
         env = wrappers.OneHotAction(env)
+        
+        """
+        
+        ################ ADDING IN FOR MINIGRID HERE ###############
+
+
+        """
+    elif suite == "minigrid":
+        import envs.minigrid as minigrid
+
+        env = minigrid.Minigrid(task, config.size, seed=config.seed + id)
+
+        # going to have to rewrite these wrappers myself in the wrappers file 
+
+        # env = RGBImgObsWrapper(env) # Get pixel observations
+        # env = ImgObsWrapper(env) # Get rid of the 'mission' field
+    elif suite == "minigridadag":
+        import envs.minigrid_adag as minigrid_adag
+        from disent.frameworks.vae import AdaVae
+        from disent.model import AutoEncoder
+        from disent.model.ae import DecoderConv64
+        from disent.model.ae import EncoderConv64
+        print('Using only Ada-GVAE encodings as input')
+       #IS IT CORRECT TO LOAD IN MODEL HERE?
+        data_x_shape=(3,64,64)
+        # Recreate the same model you trained with
+        model = AutoEncoder(
+                encoder=EncoderConv64(x_shape=data_x_shape, z_size=50, z_multiplier=2),
+                decoder=DecoderConv64(x_shape=data_x_shape, z_size=50),
+            )
+
+        # Recreate the same cfg used in training
+        cfg = AdaVae.cfg(
+            optimizer="adam",
+            optimizer_kwargs=dict(lr=1e-4),
+            loss_reduction="mean_sum",
+            beta=4,
+            ada_average_mode="gvae",
+            ada_thresh_mode="kl",
+        )
+
+        # Load the trained framework from checkpoint
+        framework = AdaVae.load_from_checkpoint(
+            checkpoint_path="trained_adag.ckpt",
+            model=model,
+            cfg=cfg,
+        )
+
+        encoder = framework._model._encoder
+        env = minigrid_adag.Minigrid(encoder, task, config.size, seed=config.seed + id, )
+    elif suite == "minigridadagplusobs":
+        import envs.minigrid_vec_img as minigrid_adag_plus
+        from disent.frameworks.vae import AdaVae
+        from disent.model import AutoEncoder
+        from disent.model.ae import DecoderConv64
+        from disent.model.ae import EncoderConv64
+        print('Using obs plus Ada-GVAE encodings as input')
+       #IS IT CORRECT TO LOAD IN MODEL HERE?
+        data_x_shape=(3,64,64)
+        # Recreate the same model you trained with
+        model = AutoEncoder(
+                encoder=EncoderConv64(x_shape=data_x_shape, z_size=50, z_multiplier=2),
+                decoder=DecoderConv64(x_shape=data_x_shape, z_size=50),
+            )
+
+        # Recreate the same cfg used in training
+        cfg = AdaVae.cfg(
+            optimizer="adam",
+            optimizer_kwargs=dict(lr=1e-4),
+            loss_reduction="mean_sum",
+            beta=4,
+            ada_average_mode="gvae",
+            ada_thresh_mode="kl",
+        )
+
+        # Load the trained framework from checkpoint
+        framework = AdaVae.load_from_checkpoint(
+            checkpoint_path="trained_adag.ckpt",
+            model=model,
+            cfg=cfg,
+        )
+
+        encoder = framework._model._encoder
+        env = minigrid_adag_plus.Minigrid(encoder, task, config.size, seed=config.seed + id, )
     else:
         raise NotImplementedError(suite)
     env = wrappers.TimeLimit(env, config.time_limit)
@@ -343,9 +449,12 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument("--configs", nargs="+")
     args, remaining = parser.parse_known_args()
-    configs = yaml.safe_load(
-        (pathlib.Path(sys.argv[0]).parent / "configs.yaml").read_text()
-    )
+    yaml=YAML(typ='safe',pure=True)
+    with open(pathlib.Path(sys.argv[0]).parent / "configs.yaml",'r') as file:
+        configs=yaml.load(file)
+    # configs = yaml.safe_load(
+    #     (pathlib.Path(sys.argv[0]).parent / "configs.yaml").read_text()
+    # )
 
     def recursive_update(base, update):
         for key, value in update.items():
