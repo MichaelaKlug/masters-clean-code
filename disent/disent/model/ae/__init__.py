@@ -25,9 +25,17 @@
 # encoders & decoders
 from disent.model.ae._vae_conv64 import DecoderConv64
 from disent.model.ae._vae_conv64 import EncoderConv64
+
+from disent.model.ae._vae_conv32 import DecoderConv32
+from disent.model.ae._vae_conv32 import EncoderConv32
+
+
 from disent.model.ae._norm_conv64 import DecoderConv64Norm
 from disent.model.ae._norm_conv64 import EncoderConv64Norm
+
 from disent.model.ae._vae_fc import DecoderFC
 from disent.model.ae._vae_fc import EncoderFC
 from disent.model.ae._linear import DecoderLinear
 from disent.model.ae._linear import EncoderLinear
+from disent.model.ae._1d_linear import DecoderLinear1d
+from disent.model.ae._1d_linear import EncoderLinear1d
