@@ -1,6 +1,7 @@
 import math
 import numpy as np
 import re
+from scipy.special import logsumexp, softmax
 
 import torch
 from torch import nn
@@ -9,6 +10,18 @@ from torch import distributions as torchd
 
 import tools
 
+from torch.distributions import Distribution
+from torch.distributions import Normal
+from torch.distributions import kl_divergence
+from dataclasses import dataclass
+from typing import Any
+from typing import Dict
+from typing import Sequence
+from typing import Tuple
+
+from collections import deque
+import random
+from disent.util.iters import map_all
 
 class RSSM(nn.Module):
     def __init__(
@@ -73,7 +86,7 @@ class RSSM(nn.Module):
         obs_out_layers.append(nn.Linear(inp_dim, self._hidden, bias=False))
         if norm:
             obs_out_layers.append(nn.LayerNorm(self._hidden, eps=1e-03))
-        obs_out_layers.append(act())
+        obs_out_layers.append(act()) #adding activation function
         self._obs_out_layers = nn.Sequential(*obs_out_layers)
         self._obs_out_layers.apply(tools.weight_init)
 
@@ -124,10 +137,11 @@ class RSSM(nn.Module):
         else:
             raise NotImplementedError(self._initial)
 
-    def observe(self, embed, action, is_first, state=None):
+    def observe(self, embed, action, is_first, return_dist=False, state=None):
         swap = lambda x: x.permute([1, 0] + list(range(2, len(x.shape))))
         # (batch, time, ch) -> (time, batch, ch)
         embed, action, is_first = swap(embed), swap(action), swap(is_first)
+        # print('embed shape calculated ', embed.shape)
         # prev_state[0] means selecting posterior of return(posterior, prior) from obs_step
         post, prior = tools.static_scan(
             lambda prev_state, prev_act, embed, is_first: self.obs_step(
@@ -140,6 +154,8 @@ class RSSM(nn.Module):
         # (batch, time, stoch, discrete_num) -> (batch, time, stoch, discrete_num)
         post = {k: swap(v) for k, v in post.items()}
         prior = {k: swap(v) for k, v in prior.items()}
+        if return_dist:
+            return 
         return post, prior
 
     def imagine_with_action(self, action, state):
@@ -159,6 +175,8 @@ class RSSM(nn.Module):
         return torch.cat([stoch, state["deter"]], -1)
 
     def get_dist(self, state, dtype=None):
+        # This function converts the latent dictionary (e.g. with logit keys for categorical latents) into a PyTorch Distribution 
+        # object like OneHotCategorical or a batch of Categorical distributions, depending on the model config.
         if self._discrete:
             logit = state["logit"]
             dist = torchd.independent.Independent(
@@ -171,13 +189,28 @@ class RSSM(nn.Module):
             )
         return dist
 
+    def get_buffer_stoch(self,embed,deter):
+        x = torch.cat([deter, embed], -1)
+        # (batch_size, prior_deter + embed) -> (batch_size, hidden)
+        x = self._obs_out_layers(x)
+        # (batch_size, hidden) -> (batch_size, stoch, discrete_num)
+        stats = self._suff_stats_layer("obs", x)
+        #stoch = self.get_dist(stats).sample()
+        #we want to return the distribution not a sampled vector from the distirbution
+        stoch = self.get_dist(stats)
+        return stoch
+
     def obs_step(self, prev_state, prev_action, embed, is_first, sample=True):
+        #trying to set sample here to false - ONLY WHEN DOING EVALUTAION OF REPS 
+        #sample=False
+
         # initialize all prev_state
         if prev_state == None or torch.sum(is_first) == len(is_first):
             prev_state = self.initial(len(is_first))
             prev_action = torch.zeros(
                 (len(is_first), self._num_actions), device=self._device
             )
+        
         # overwrite the prev_state only where is_first=True
         elif torch.sum(is_first) > 0:
             is_first = is_first[:, None]
@@ -193,7 +226,16 @@ class RSSM(nn.Module):
                 )
 
         prior = self.img_step(prev_state, prev_action)
+        # print('prior is ', torch.norm(prior['deter']))
+
+
+        #=============================================================
+        # THINK THIS IS ALL WE NEED TO GET STOCH STATE FROM OUR 
+        # BUFFER STATE WHICH STORES H AND IMAGE X
+        #=============================================================
+
         x = torch.cat([prior["deter"], embed], -1)
+        
         # (batch_size, prior_deter + embed) -> (batch_size, hidden)
         x = self._obs_out_layers(x)
         # (batch_size, hidden) -> (batch_size, stoch, discrete_num)
@@ -271,6 +313,8 @@ class RSSM(nn.Module):
 
     def kl_loss(self, post, prior, free, dyn_scale, rep_scale):
         kld = torchd.kl.kl_divergence
+        # dist(x) wraps or converts the dict representation of the latent (e.g. logits or parameters) 
+        # into an actual torch.distribution.Distribution object.
         dist = lambda x: self.get_dist(x)
         sg = lambda x: {k: v.detach() for k, v in x.items()}
 
@@ -289,6 +333,118 @@ class RSSM(nn.Module):
 
         return loss, value, dyn_loss, rep_loss
 
+    # def mix_logits(self,logits1, logits2, w=0.5):
+    #     logp1 = logits1 - logsumexp(logits1)    # shape (K,)
+    #     logp2 = logits2 - logsumexp(logits2)
+
+    #     # 2) Weight in log-space
+    #     log_w1 = np.log(w)
+    #     log_w2 = np.log(1.0 - w)
+
+    #     # 3) log‑sum‑exp mix for each class
+    #     stacked = np.stack([log_w1 + logp1,
+    #                         log_w2 + logp2], axis=0)  # shape (2, K)
+    #     mixed_logp = logsumexp(stacked, axis=0)       # shape (K,)
+
+    #     # mixed_logp sums to 1 in probability space, so can be used directly as logits
+    #     return mixed_logp
+    
+    def mix_logits(self, logits1, logits2, w=0.5):
+        """
+        Mix two logit vectors (logits1, logits2) in a numerically stable way.
+
+        Args:
+            logits1: Tensor of shape (..., K)
+            logits2: Tensor of shape (..., K)
+            w: Weighting scalar in [0, 1]
+
+        Returns:
+            Tensor of same shape as logits1/logits2 (..., K) representing the mixed logits
+        """
+        # 1) Convert logits to log-probabilities (log-softmax)
+        logp1 = logits1 - torch.logsumexp(logits1, dim=-1, keepdim=True)
+        logp2 = logits2 - torch.logsumexp(logits2, dim=-1, keepdim=True)
+
+        # 2) Compute weighted log-probs
+        log_w1 = torch.log(torch.tensor(w, dtype=logits1.dtype, device=logits1.device))
+        log_w2 = torch.log(torch.tensor(1.0 - w, dtype=logits2.dtype, device=logits2.device))
+
+        # 3) Stack and mix in log-space
+        stacked = torch.stack([log_w1 + logp1, log_w2 + logp2], dim=0)  # shape (2, ..., K)
+        mixed_logp = torch.logsumexp(stacked, dim=0)  # shape (..., K)
+
+        return mixed_logp  # Can be treated as mixed logits
+
+    # Code from Nathan disent library : disent/frameworks/vae/_weaklysupervised__adavae.py
+    def hook_intercept_ds(
+    self, ds_posterior: Sequence[torch.distributions.Independent]
+) -> Sequence[torch.distributions.Independent]:
+        """
+        Adaptive VAE Method, putting the various components together
+            1. compute differences between representations
+            2. estimate a threshold for differences
+            3. compute a shared mask from this threshold
+            4. average together elements that are marked as shared
+
+        (x) Visual inspection against reference implementation:
+            https://github.com/google-research/disentanglement_lib (aggregate_argmax)
+        """
+        # print('CALLING HOOK')
+        # d0_posterior=ds_posterior['stoch'] #-----> make sure that post is either just the stoch or that we just take the post['stoch']
+        # d1_posterior = ds_posterior #------> this will be the post['stoch'] of the second image which will be sampled from a buffer 
+        d0_posterior, d1_posterior = ds_posterior
+        # [1] symmetric KL Divergence FROM: https://openreview.net/pdf?id=8VXvj1QNRl1
+        z_deltas = 0.5 * kl_divergence(d1_posterior, d0_posterior) + 0.5 * kl_divergence(d0_posterior, d1_posterior)
+
+        # [2] estimate threshold from deltas
+        z_deltas_min = z_deltas.min(axis=1, keepdim=True).values  # (B, 1)
+        z_deltas_max = z_deltas.max(axis=1, keepdim=True).values  # (B, 1)
+        z_thresh = 0.5 * z_deltas_min + 0.5 * z_deltas_max  # (B, 1)
+
+        # [3] shared elements that need to be averaged, computed per pair in the batch
+        share_mask = z_deltas < z_thresh  # broadcast (B, Z) and (B, 1) to get (B, Z)
+
+        # [4.a] compute average representations
+        # - this is the only difference between the Ada-ML-VAE
+        # ave_mean = 0.5 * d0_posterior.mean + 0.5 * d1_posterior.mean
+        # ave_std = (0.5 * d0_posterior.variance + 0.5 * d1_posterior.variance) ** 0.5
+        # [4] Average logits across latent groups
+        d0_logits = d0_posterior.base_dist.logits  # (B, Z, C)
+        d1_logits = d1_posterior.base_dist.logits  # (B, Z, C)
+        # ave_logits = 0.5 * d0_logits + 0.5 * d1_logits  # (B, Z, C)
+        ave_logits = self.mix_logits(d0_logits, d1_logits)
+        #distribution= softmax(mixture_logits)
+        
+        # Broadcast mask to match logits shape
+        # print("share_mask shape:", share_mask.shape)
+        # print("d0_logits shape:", d0_logits.shape)
+        # Starting shape: [B, T]
+        # → .unsqueeze(-1) → [B, T, 1]
+        # → .unsqueeze(-1) → [B, T, 1, 1]
+        # → .expand_as([B, T, 32, 32]) → ✅ [B, T, 32, 32]
+
+        # Now each [B, T] element is broadcast across all 32 slots and 32 categories, exactly as intended.
+        share_mask_expanded = share_mask.unsqueeze(-1).unsqueeze(-1).expand_as(d0_logits)
+        
+        # [4.b] select shared or original values based on mask
+        # z0_mean = torch.where(share_mask, ave_mean, d0_posterior.loc)
+        # z1_mean = torch.where(share_mask, ave_mean, d1_posterior.loc)
+        # z0_std = torch.where(share_mask, ave_std, d0_posterior.scale)
+        # z1_std = torch.where(share_mask, ave_std, d1_posterior.scale)
+        z0_logits = torch.where(share_mask_expanded, ave_logits, d0_logits)
+        z1_logits = torch.where(share_mask_expanded, ave_logits, d1_logits)
+
+        # construct distributions
+        # ave_d0_posterior = Normal(loc=z0_mean, scale=z0_std)
+        # ave_d1_posterior = Normal(loc=z1_mean, scale=z1_std)
+        # new_ds_posterior = (ave_d0_posterior, ave_d1_posterior)
+        new_d0 = self.get_dist({"logit": z0_logits})
+        new_d1 = self.get_dist({"logit": z1_logits})
+        new_ds_posterior = (new_d0, new_d1)
+
+        
+        # [done] return new args & generate logs
+        return new_ds_posterior
 
 class MultiEncoder(nn.Module):
     def __init__(
@@ -324,6 +480,13 @@ class MultiEncoder(nn.Module):
         print("Encoder MLP shapes:", self.mlp_shapes)
 
         self.outdim = 0
+        #---------------------------------------------------------------------------------------
+        #       Computes total number of channels across all CNN inputs.
+        #       Merges all images into a single tensor with channels stacked.
+        #       Creates a ConvEncoder (assumed to be defined elsewhere).
+        #       Adds its output dimension to self.outdim.
+        #---------------------------------------------------------------------------------------
+#
         if self.cnn_shapes:
             input_ch = sum([v[-1] for v in self.cnn_shapes.values()])
             input_shape = tuple(self.cnn_shapes.values())[0][:2] + (input_ch,)
@@ -345,8 +508,16 @@ class MultiEncoder(nn.Module):
             )
             self.outdim += mlp_units
 
+
     def forward(self, obs):
+        #tried to see if removing stochasticity from env would help - didnt
+        # torch.manual_seed(0)
+        # import os
+        # os.environ["CUBLAS_WORKSPACE_CONFIG"] = ":4096:8"
+        # torch.use_deterministic_algorithms(True)
+
         outputs = []
+        
         if self.cnn_shapes:
             inputs = torch.cat([obs[k] for k in self.cnn_shapes], -1)
             outputs.append(self._cnn(inputs))
@@ -354,6 +525,7 @@ class MultiEncoder(nn.Module):
             inputs = torch.cat([obs[k] for k in self.mlp_shapes], -1)
             outputs.append(self._mlp(inputs))
         outputs = torch.cat(outputs, -1)
+        # print('outputs ', torch.norm(outputs))
         return outputs
 
 
@@ -575,6 +747,7 @@ class ConvDecoder(nn.Module):
         x = x.permute(0, 3, 1, 2)
         x = self.layers(x)
         # (batch, time, -1) -> (batch, time, ch, h, w)
+        # print('the shape is ', x.shape)
         mean = x.reshape(features.shape[:-1] + self._shape)
         # (batch, time, ch, h, w) -> (batch, time, h, w, ch)
         mean = mean.permute(0, 1, 3, 4, 2)
