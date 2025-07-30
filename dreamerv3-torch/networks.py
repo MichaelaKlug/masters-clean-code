@@ -137,11 +137,10 @@ class RSSM(nn.Module):
         else:
             raise NotImplementedError(self._initial)
 
-    def observe(self, embed, action, is_first, return_dist=False, state=None):
+    def observe(self, embed, action, is_first, state=None):
         swap = lambda x: x.permute([1, 0] + list(range(2, len(x.shape))))
         # (batch, time, ch) -> (time, batch, ch)
         embed, action, is_first = swap(embed), swap(action), swap(is_first)
-        # print('embed shape calculated ', embed.shape)
         # prev_state[0] means selecting posterior of return(posterior, prior) from obs_step
         post, prior = tools.static_scan(
             lambda prev_state, prev_act, embed, is_first: self.obs_step(
@@ -154,8 +153,6 @@ class RSSM(nn.Module):
         # (batch, time, stoch, discrete_num) -> (batch, time, stoch, discrete_num)
         post = {k: swap(v) for k, v in post.items()}
         prior = {k: swap(v) for k, v in prior.items()}
-        if return_dist:
-            return 
         return post, prior
 
     def imagine_with_action(self, action, state):
@@ -333,21 +330,6 @@ class RSSM(nn.Module):
 
         return loss, value, dyn_loss, rep_loss
 
-    # def mix_logits(self,logits1, logits2, w=0.5):
-    #     logp1 = logits1 - logsumexp(logits1)    # shape (K,)
-    #     logp2 = logits2 - logsumexp(logits2)
-
-    #     # 2) Weight in log-space
-    #     log_w1 = np.log(w)
-    #     log_w2 = np.log(1.0 - w)
-
-    #     # 3) log‑sum‑exp mix for each class
-    #     stacked = np.stack([log_w1 + logp1,
-    #                         log_w2 + logp2], axis=0)  # shape (2, K)
-    #     mixed_logp = logsumexp(stacked, axis=0)       # shape (K,)
-
-    #     # mixed_logp sums to 1 in probability space, so can be used directly as logits
-    #     return mixed_logp
     
     def mix_logits(self, logits1, logits2, w=0.5):
         """
@@ -747,7 +729,6 @@ class ConvDecoder(nn.Module):
         x = x.permute(0, 3, 1, 2)
         x = self.layers(x)
         # (batch, time, -1) -> (batch, time, ch, h, w)
-        # print('the shape is ', x.shape)
         mean = x.reshape(features.shape[:-1] + self._shape)
         # (batch, time, ch, h, w) -> (batch, time, h, w, ch)
         mean = mean.permute(0, 1, 3, 4, 2)
