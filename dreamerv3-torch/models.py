@@ -106,7 +106,7 @@ class WorldModel(nn.Module):
             cont=config.cont_head["loss_scale"],
         )
         self._deters_q = deque()
-        self._max_q_length=10000
+        self._max_q_length=1000
         self._obs_q = deque()
   
     
