@@ -322,10 +322,11 @@ class XYSingleSquareData(GroundTruthData):
         elif idx[0]>=0 or idx[1]=='first':
             self.accum_start[fx, fy] += 1
             self.count_start+=1
-        x, y = offset + space * fx, offset + space * fy
+        
         #print('x and y are : ',x,y)
         # draw square onto image
         obs = np.zeros(self.img_shape, dtype="uint8")
+        x, y = offset + space * fx, offset + space * fy
         obs[y : y + size, x : x + size, :] = 255
         #obs = obs.squeeze(-1) 
         
