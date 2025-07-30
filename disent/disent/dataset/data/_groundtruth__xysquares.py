@@ -31,7 +31,7 @@ import numpy as np
 
 from disent.dataset.data._groundtruth import GroundTruthData
 from disent.util.iters import iter_chunks
-
+import random
 log = logging.getLogger(__name__)
 
 
@@ -252,18 +252,22 @@ class XYSingleSquareData(GroundTruthData):
         ] = None,  # how far apart the square is spaced, buy default this is the square size, meaning no overlap!
         no_warnings: bool = False,
         transform=None,
+        n=1
     ):
         if grid_spacing is None:
             grid_spacing = square_size
         if (grid_spacing < square_size) and not no_warnings:
             log.warning(f"overlap between squares for reconstruction loss, {grid_spacing} < {square_size}")
         # vars
+        self.count_pair=0
+        self.count_start=0
         self._width = image_size  # image width and height
         self._square_size = square_size  # square width and height
         self._spacing = grid_spacing  # spacing between square positions
         self._placements = (
             self._width - self._square_size
         ) // grid_spacing + 1  # number of positions the square can be in along an axis
+        self.n=n
         # maximum placements
         if grid_size is not None:
             if grid_size > self._placements:
@@ -271,6 +275,10 @@ class XYSingleSquareData(GroundTruthData):
                     f"number of possible placements: {self._placements} is less than the given grid size: {grid_size}, reduced grid size from: {grid_size} -> {self._placements}"
                 )
             self._placements = min(self._placements, grid_size)
+        print('placements: ',self._placements)
+        # self.accum= np.zeros((64, 64))
+        self.accum_start = np.zeros((self.factor_sizes[1], self.factor_sizes[0]), dtype=int)
+        self.accum_pair = np.zeros((self.factor_sizes[1], self.factor_sizes[0]), dtype=int)
         # center elements
         self._offset = (self._width - (self._square_size + (self._placements - 1) * self._spacing)) // 2
         # initialise parents -- they depend on self.factors
@@ -278,12 +286,50 @@ class XYSingleSquareData(GroundTruthData):
 
     def _get_observation(self, idx):
         # get factors == grid position/index
-        fx, fy = self.idx_to_pos(idx)
+        # max_index=self.factor_sizes[0]*self.factor_sizes[1]-1
+        #===================================================
+        #   FOR RLSAMPLER WANT OBJECT TO MOVE RANDOMLY 
+        #   AT EACH 'TIME STEP' N - FIND ALL POSSIBLE
+        #   STATES/ACTIONS AND RANDOMLY CHOOSE ONE FOR 
+        #   EACH N
+        #===================================================
+       
+        new_idx=abs(idx[0])
+        fx, fy = self.idx_to_pos(new_idx)
         offset, space, size = self._offset, self._spacing, self._square_size
+        #print('original fx and fy are ', fx,fy)
+        if idx[0]<0 or idx[1]=='second':
+            for i in range(self.n):
+                # 4 possible moves: right, left, down, up
+                moves = [(1, 0), (-1, 0), (0, 1), (0, -1)]
+                move = random.choice(moves)
+
+                # Apply wrapping using modulo over factor size
+                fx = (fx + move[0]) % self.factor_sizes[0]
+                fy = (fy + move[1]) % self.factor_sizes[1]
+                # possible_placements=[]
+                # for move in moves:
+                #     x, y = offset + space * (fx+move[0]), offset + space * (fy+move[1])
+                #     if 0 <= x < self._width and 0 <= y < self._width:
+                #         #print('entering here at ', move)
+                #         possible_placements.append(move)
+                # choice = random.choice(possible_placements)
+                # fx+=choice[0]
+                # fy+=choice[1]
+                #print('new fx and fy are ', fx,fy,'\n')
+            self.accum_pair[fx, fy] += 1
+            self.count_pair+=1
+        elif idx[0]>=0 or idx[1]=='first':
+            self.accum_start[fx, fy] += 1
+            self.count_start+=1
+        x, y = offset + space * fx, offset + space * fy
+        #print('x and y are : ',x,y)
         # draw square onto image
         obs = np.zeros(self.img_shape, dtype="uint8")
-        x, y = offset + space * fx, offset + space * fy
         obs[y : y + size, x : x + size, :] = 255
+        #obs = obs.squeeze(-1) 
+        
+        
         return obs
 
 
