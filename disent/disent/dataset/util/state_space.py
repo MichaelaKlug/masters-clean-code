@@ -211,6 +211,30 @@ class StateSpace(LengthIter):
     def sample_indices(self, size=None):
         return np.random.randint(0, len(self), size=size)
 
+    def sample_unlock_factors(self, size=None, f_idxs: Optional[NonNormalisedFactorIdxs] = None) -> np.ndarray:
+            # get factor sizes 
+	       
+            if f_idxs is None:
+                f_sizes = self.__factor_sizes
+            else:
+                f_sizes = self.__factor_sizes[self.normalise_factor_idxs(f_idxs)]  # this may be quite slow, add caching?
+            # get resample size
+            num_samples=size
+            if size is not None:
+                # empty np.array(()) gets dtype float which is incompatible with len
+                size = np.append(np.array(size, dtype=int), len(f_sizes))
+            # sample for factors
+            factors = np.empty((num_samples, len(f_sizes)), dtype=int)
+            for i in range(num_samples):
+                factor=np.random.randint(0, f_sizes)
+                while factor[0]==factor[4] and factor[1]==factor[5]:
+                    factor=np.random.randint(0, f_sizes)
+                # factors[i]  = [x + 1 if i != 2 else x for i, x in enumerate(factor)]
+                factors[i]=factor
+            
+            return factors
+
+
     def sample_factors(self, size=None, f_idxs: Optional[NonNormalisedFactorIdxs] = None) -> np.ndarray:
         """
         sample randomly from all factors, otherwise the given factor_indices.
