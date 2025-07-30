@@ -141,7 +141,7 @@ minigrid:
   train_ratio: 256 #512 chatgpt says reduce train ratio since minigrid has smaller state space
 
   #CHANGE HERE TO FALSE WHEN FEEDING IN LATENT VECTOR FROM ADA-GVAE AND NOT ENV IMAGE
-  video_pred_log: false
+  video_pred_log: True
 
   dyn_hidden: 512  # Reduce hidden size since MiniGrid has simpler dynamics 1024
   dyn_deter: 2048  # Reduce deterministic state size 4096
