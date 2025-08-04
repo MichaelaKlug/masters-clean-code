@@ -21,7 +21,7 @@ import cv2
 from gymnasium import spaces
 import numpy as np
 import json
-
+import os
 import warnings
 from typing import Optional
 from typing import Tuple
@@ -128,6 +128,7 @@ class UnlockDataDV3(GroundTruthData):
         key_xs: int = 4,
         key_ys: int = 4,
         transform=None,
+        latent_shape="2D" #shape of the latent representation, either 1D or 2D
     ):
      
     
@@ -140,8 +141,11 @@ class UnlockDataDV3(GroundTruthData):
         self._door_ys= door_ys
         self._key_xs = key_xs
         self._key_ys= key_ys
+        self.latent_shape=latent_shape
 
-        with open("latent_reps.pkl", "rb") as f:
+        file_dir = os.path.dirname(__file__)
+        file_path = os.path.join(file_dir, "latent_reps.pkl")
+        with open(file_path, "rb") as f:
             latents = pickle.load(f)
                         
         # with open("image_dict.pkl", "rb") as f:
@@ -157,24 +161,14 @@ class UnlockDataDV3(GroundTruthData):
 
     def _get_observation(self, idx):
         #idx=idx[0]
+        if isinstance(idx, tuple):
+            # if we have a pair, we need to get the first element of the pair
+            idx=idx[0]
         orig_list=self.idx_to_pos(idx)
         modified_lst = [x + 1 if i != 2 else x for i, x in enumerate(orig_list)]
 
         
         factors=tuple(modified_lst)
-
-        #plt.imsave('changing.png', obs)
-
-        # agent_x,agent_y,agent_dir,door_y,key_x,key_y= modified_lst
-        # env = SimpleEnv(agent_start_pos=(agent_x,agent_y),agent_start_dir=agent_dir,
-        #                                         door_pos=(5,door_y),key_pos=(key_x ,key_y))
-        # env = RGBImgObsWrapper(env)
-        # env = ImgObsWrapper(env)
-        # new_obs_space = spaces.Box(low=0, high=255, shape=(64, 64, 3), dtype=np.uint8)
-        # env = TransformObservation(env, lambda obs: cv2.resize(obs, (64, 64), interpolation=cv2.INTER_LINEAR),new_obs_space)
-        # obs, info=env.reset()
-
-       
 
         #---------------------------------------------------------------
         #   PASS OBS THROUGH DV3 ENCODER TO GET LATENT REP
@@ -182,27 +176,33 @@ class UnlockDataDV3(GroundTruthData):
         #   STATE INPUT
         #   THEN SET OBS IMAGE OF THAT OBS TO EQUAL OUR DESIRED OBS
         #---------------------------------------------------------------
-        
+        model_output=self._obs_dictionary[factors]
+        latent_rep=None
 
         #======================================================
         #   TO GET 1D VECTOR OF INDICES OF LATENT SPACE
         #=====================================================
-        #latent_rep=self._obs_dictionary[factors].unsqueeze(0).float()
+        if self.latent_shape=="1D":
+            #latent_rep=self._obs_dictionary[factors].unsqueeze(0).float()
+            # latent_rep= model_output.unsqueeze(0).float()
+            latent_rep = torch.tensor(model_output).unsqueeze(0).float()
+
 
 
         #==========================================================================
         #   TO GET 2D ONE HOT ENCODED VECTOR OF LATENT SPACE
         #==========================================================================
-        latent_rep=self._obs_dictionary[factors]
-        latent_rep = F.one_hot(latent_rep, num_classes=32).float()
-        #print('shape is ',latent_rep.shape)
-        pil_image = F_tv.to_pil_image(latent_rep) #transform needs image as PIL image not tensor
-        
+        #latent_rep=self._obs_dictionary[factors]
+
+        elif self.latent_shape=="2D":
+            latent_rep_out = F.one_hot(torch.tensor(model_output), num_classes=32).float()
+            latent_rep = F_tv.to_pil_image(latent_rep_out) #transform needs image as PIL image not tensor
+            
         #If we want the image to have three channels
         # np_array = one_hot.detach().cpu().numpy()
         # rgb_img = np.stack([np_array]*3, axis=-1)
 
-        return pil_image
+        return latent_rep
 
 
 

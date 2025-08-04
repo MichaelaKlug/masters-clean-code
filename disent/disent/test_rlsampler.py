@@ -18,19 +18,19 @@ import torch
 from torch.utils.data import DataLoader
 
 from disent.dataset import DisentDataset
-from disent.dataset.data import XYObjectData,XYSingleSquareData, RlUnlockData, UnlockData
+from disent.dataset.data import XYObjectData,XYSingleSquareData, RlUnlockData, UnlockData,UnlockDataDV3
 from disent.dataset.sampling import SingleSampler
 from disent.dataset.transform import ToImgTensorF32
 from disent.frameworks.vae import BetaVae, AdaVae
 from disent.metrics import metric_dci
 from disent.metrics import metric_mig
 from disent.model import AutoEncoder
-from disent.model.ae import DecoderConv64
-from disent.model.ae import EncoderConv64
+from disent.model.ae import DecoderConv64, DecoderConv32
+from disent.model.ae import EncoderConv64, EncoderConv32
 from disent.schedule import CyclicSchedule
 
-from disent.model.ae import DecoderLinear
-from disent.model.ae import EncoderLinear
+from disent.model.ae import DecoderLinear, DecoderLinear1d
+from disent.model.ae import EncoderLinear, EncoderLinear1d
 
 # from _groundtruth__unlockobject import UnlockData
 
@@ -60,8 +60,8 @@ def train_model(lr, batch_size, z_size, steps):
     #===============================================
     #   TRAINING USING NORMAL SAMPLER
     #===============================================
-    data=UnlockData()
-    dataset = DisentDataset(dataset=data, sampler=GroundTruthPairOrigSamplerUnlock(), transform=ToImgTensorF32())
+    data=UnlockDataDV3(latent_shape="1D")
+    dataset = DisentDataset(dataset=data, sampler=GroundTruthPairOrigSamplerUnlock(), transform=None)
     dataloader = DataLoader(dataset=dataset, batch_size=batch_size, shuffle=True, num_workers=0)
 
     #===============================================
@@ -79,10 +79,11 @@ def train_model(lr, batch_size, z_size, steps):
     # dataloader = DataLoader(dataset=dataset, batch_size=batch_size, shuffle=True, num_workers=0)
 
 
-    data_x_shape=(3,64,64)
+    # data_x_shape=(3,64,64)
+    data_x_shape=(1,32)
     model = AutoEncoder(
-        encoder=EncoderConv64(x_shape=data_x_shape, z_size=z_size, z_multiplier=2),
-        decoder=DecoderConv64(x_shape=data_x_shape, z_size=z_size),
+        encoder=EncoderLinear1d(x_shape=data_x_shape, z_size=z_size, z_multiplier=2),
+        decoder=DecoderLinear1d(x_shape=data_x_shape, z_size=z_size),
     )
     
     framework = AdaVae(
