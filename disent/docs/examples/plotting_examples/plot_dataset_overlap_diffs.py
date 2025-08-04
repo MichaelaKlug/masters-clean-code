@@ -41,6 +41,8 @@ from disent.dataset.data import XYSquaresData
 from disent.util.function import wrapped_partial
 from disent.util.seeds import TempNumpySeed
 
+
+from disent.dataset.data import UnlockData
 # ========================================================================= #
 # core                                                                      #
 # ========================================================================= #
@@ -172,6 +174,60 @@ def plot_dataset_overlap(
 # ========================================================================= #
 
 
+# if __name__ == "__main__":
+#     # matplotlib style
+#     plt.style.use(os.path.join(os.path.dirname(__file__), "util/gadfly.mplstyle"))
+
+#     # options
+#     all_squares = True
+#     add_random_traversal = True
+#     num_cols = 7
+#     seed = 48
+
+#     for gt_data_cls, name in [
+#         (wrapped_partial(XYSquaresData, grid_spacing=1, grid_size=8, no_warnings=True), f"xy-squares-spacing1"),
+#         (wrapped_partial(XYSquaresData, grid_spacing=2, grid_size=8, no_warnings=True), f"xy-squares-spacing2"),
+#         (wrapped_partial(XYSquaresData, grid_spacing=4, grid_size=8, no_warnings=True), f"xy-squares-spacing4"),
+#         (wrapped_partial(XYSquaresData, grid_spacing=8, grid_size=8, no_warnings=True), f"xy-squares-spacing8"),
+#     ]:
+#         plot_dataset_overlap(
+#             gt_data_cls(), rel_path=f"plots/overlap/overlap__{name}", obs_max=3, obs_spacing=4, seed=seed - 40
+#         )
+
+#     # replace the factor names!
+#     Mpi3dData.factor_names = ("color", "shape", "size", "elevation", "bg_color", "first_dof", "second_dof")
+
+#     for gt_data_cls, name in [
+#         (XYObjectData, f"xyobject"),
+#         (XYObjectShadedData, f"xyobject_shaded"),
+#         (DSpritesData, f"dsprites"),
+#         (Shapes3dData, f"shapes3d"),
+#         (Cars3d64Data, f"cars3d"),
+#         (SmallNorb64Data, f"smallnorb"),
+#         (wrapped_partial(Mpi3dData, in_memory=True, subset="toy"), f"mpi3d_toy"),
+#         (wrapped_partial(Mpi3dData, in_memory=True, subset="realistic"), f"mpi3d_realistic"),
+#         (wrapped_partial(Mpi3dData, in_memory=True, subset="real"), f"mpi3d_real"),
+#     ]:
+#         gt_data = gt_data_cls()
+#         for f_idx, f_name in enumerate(gt_data.factor_names):
+#             try:
+#                 plot_dataset_overlap(
+#                     gt_data,
+#                     rel_path=f"plots/overlap/overlap__{name}__f{f_idx}-{f_name}",
+#                     obs_max=3,
+#                     obs_spacing=4,
+#                     f_idxs=f_idx,
+#                     seed=seed,
+#                 )
+#             except Exception as e:
+#                 print("FAILED", gt_data_cls, f_idx, f_name, e)
+
+
+# ========================================================================= #
+# END                                                                       #
+# ========================================================================= #
+
+
 if __name__ == "__main__":
     # matplotlib style
     plt.style.use(os.path.join(os.path.dirname(__file__), "util/gadfly.mplstyle"))
@@ -182,45 +238,19 @@ if __name__ == "__main__":
     num_cols = 7
     seed = 48
 
-    for gt_data_cls, name in [
-        (wrapped_partial(XYSquaresData, grid_spacing=1, grid_size=8, no_warnings=True), f"xy-squares-spacing1"),
-        (wrapped_partial(XYSquaresData, grid_spacing=2, grid_size=8, no_warnings=True), f"xy-squares-spacing2"),
-        (wrapped_partial(XYSquaresData, grid_spacing=4, grid_size=8, no_warnings=True), f"xy-squares-spacing4"),
-        (wrapped_partial(XYSquaresData, grid_spacing=8, grid_size=8, no_warnings=True), f"xy-squares-spacing8"),
-    ]:
-        plot_dataset_overlap(
-            gt_data_cls(), rel_path=f"plots/overlap/overlap__{name}", obs_max=3, obs_spacing=4, seed=seed - 40
-        )
+    data = UnlockData()
 
-    # replace the factor names!
-    Mpi3dData.factor_names = ("color", "shape", "size", "elevation", "bg_color", "first_dof", "second_dof")
-
-    for gt_data_cls, name in [
-        (XYObjectData, f"xyobject"),
-        (XYObjectShadedData, f"xyobject_shaded"),
-        (DSpritesData, f"dsprites"),
-        (Shapes3dData, f"shapes3d"),
-        (Cars3d64Data, f"cars3d"),
-        (SmallNorb64Data, f"smallnorb"),
-        (wrapped_partial(Mpi3dData, in_memory=True, subset="toy"), f"mpi3d_toy"),
-        (wrapped_partial(Mpi3dData, in_memory=True, subset="realistic"), f"mpi3d_realistic"),
-        (wrapped_partial(Mpi3dData, in_memory=True, subset="real"), f"mpi3d_real"),
-    ]:
-        gt_data = gt_data_cls()
-        for f_idx, f_name in enumerate(gt_data.factor_names):
-            try:
-                plot_dataset_overlap(
-                    gt_data,
-                    rel_path=f"plots/overlap/overlap__{name}__f{f_idx}-{f_name}",
-                    obs_max=3,
-                    obs_spacing=4,
-                    f_idxs=f_idx,
-                    seed=seed,
-                )
-            except Exception as e:
-                print("FAILED", gt_data_cls, f_idx, f_name, e)
+    for f_idx, f_name in enumerate(data.factor_names):
+        try:
+            plot_dataset_overlap(
+                data,
+                rel_path=f"plots/overlap/overlap__unlockobject__f{f_idx}-{f_name}",
+                obs_max=3,
+                obs_spacing=4,
+                f_idxs=f_idx,
+                seed=seed,
+            )
+        except Exception as e:
+            print("FAILED", f_idx, f_name, e)
 
 
-# ========================================================================= #
-# END                                                                       #
-# ========================================================================= #
