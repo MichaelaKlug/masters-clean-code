@@ -46,7 +46,7 @@ setuptools.setup(
     name="disent",
     author="Nathan Juraj Michlo",
     author_email="NathanJMichlo@gmail.com",
-    version="{{VERSION_PLACEHOLDER}}",  # replaced by GitHub action at runtime
+    version="1.0",  # replaced by GitHub action at runtime
     python_requires=">=3.8",  # we make use of standard library features only in 3.8
     packages=setuptools.find_packages(),
     install_requires=install_requires,

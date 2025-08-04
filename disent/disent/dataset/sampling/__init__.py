@@ -29,6 +29,8 @@ from disent.dataset.sampling._base import BaseDisentSampler
 from disent.dataset.sampling._groundtruth__dist import GroundTruthDistSampler
 from disent.dataset.sampling._groundtruth__pair import GroundTruthPairSampler
 from disent.dataset.sampling._groundtruth__pair_orig import GroundTruthPairOrigSampler
+from disent.dataset.sampling._groundtruth__pair_orig import GroundTruthPairOrigSamplerUnlock
+from disent.dataset.sampling._groundtruth__pair_orig import RlSampler
 from disent.dataset.sampling._groundtruth__single import GroundTruthSingleSampler
 from disent.dataset.sampling._groundtruth__triplet import GroundTruthTripleSampler
 from disent.dataset.sampling._groundtruth__walk import GroundTruthRandomWalkSampler

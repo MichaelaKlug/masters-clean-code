@@ -178,6 +178,7 @@ class DisentDataset(Dataset, LengthIter):
 
     @property
     def is_ground_truth(self) -> bool:
+        print('what is the dataset?', self._dataset)
         return isinstance(self._dataset, GroundTruthData)
 
     @property
