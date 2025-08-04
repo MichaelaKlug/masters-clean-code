@@ -18,7 +18,7 @@ import torch
 from torch.utils.data import DataLoader
 
 from disent.dataset import DisentDataset
-from disent.dataset.data import XYObjectData,XYSingleSquareData, RlUnlockData
+from disent.dataset.data import XYObjectData,XYSingleSquareData, RlUnlockData, UnlockData
 from disent.dataset.sampling import SingleSampler
 from disent.dataset.transform import ToImgTensorF32
 from disent.frameworks.vae import BetaVae, AdaVae
@@ -35,13 +35,13 @@ from disent.model.ae import EncoderLinear
 # from _groundtruth__unlockobject import UnlockData
 
 #from _groundtruth__pair_orig import GroundTruthPairOrigSampler, ConsecStatesSampler
-from disent.dataset.sampling import GroundTruthPairSampler,RlSampler,GroundTruthPairOrigSampler
+from disent.dataset.sampling import GroundTruthPairSampler,RlSampler,GroundTruthPairOrigSampler,GroundTruthPairOrigSamplerUnlock
 
 import itertools
 import time
 from PIL import Image
 
-from _groundtruth__trajectories import EpisodeData
+# from _groundtruth__trajectories import EpisodeData
 
 from torchvision.utils import save_image
 import imageio
@@ -49,7 +49,6 @@ import imageio
 import minigrid
 print("Minigrid loaded from:", minigrid.__file__)
 import sys
-print("Sys.path:", sys.path)
 
 
 
@@ -61,9 +60,9 @@ def train_model(lr, batch_size, z_size, steps):
     #===============================================
     #   TRAINING USING NORMAL SAMPLER
     #===============================================
-    # data=UnlockData()
-    # dataset = DisentDataset(dataset=data, sampler=GroundTruthPairOrigSampler(), transform=ToImgTensorF32())
-    # dataloader = DataLoader(dataset=dataset, batch_size=batch_size, shuffle=True, num_workers=0)
+    data=UnlockData()
+    dataset = DisentDataset(dataset=data, sampler=GroundTruthPairOrigSamplerUnlock(), transform=ToImgTensorF32())
+    dataloader = DataLoader(dataset=dataset, batch_size=batch_size, shuffle=True, num_workers=0)
 
     #===============================================
     #   TRAINING USING RL SAMPLER
@@ -75,9 +74,9 @@ def train_model(lr, batch_size, z_size, steps):
     #===============================================
     #   TRAINING USING DV3 encodings
     #===============================================
-    data=XYObjectData()
-    dataset = DisentDataset(dataset=data, sampler=GroundTruthPairOrigSampler(), transform=ToImgTensorF32())
-    dataloader = DataLoader(dataset=dataset, batch_size=batch_size, shuffle=True, num_workers=0)
+    # data=XYObjectData()
+    # dataset = DisentDataset(dataset=data, sampler=GroundTruthPairOrigSampler(), transform=ToImgTensorF32())
+    # dataloader = DataLoader(dataset=dataset, batch_size=batch_size, shuffle=True, num_workers=0)
 
 
     data_x_shape=(3,64,64)
@@ -117,8 +116,9 @@ def train_model(lr, batch_size, z_size, steps):
     
 def test_model():
     #data=XYSquaresData(grid_spacing=3)
-    data = XYSingleSquareData(grid_spacing=4,n=1)
-    dataset = DisentDataset(dataset=data, sampler=GroundTruthPairSampler(), transform=ToImgTensorF32())
+    # data = XYSingleSquareData(grid_spacing=4,n=1)
+    data=UnlockData()
+    dataset = DisentDataset(dataset=data, sampler=GroundTruthPairOrigSampler(), transform=ToImgTensorF32())
     dataloader = DataLoader(dataset=dataset, batch_size=1, shuffle=True, num_workers=0)
     batch = next(iter(dataloader))
     print(batch['x_targ'][0].shape)
@@ -185,11 +185,10 @@ def get_gif():
     imageio.mimsave('output_minigrid2.gif', frames, duration=3)
     print("GIF saved as output_minigrid2.gif")
    
-
-# train_model(0.0001, 4, 6, 1000)
+train_model(0.0001, 4, 6, 10)
 #lr=1e-4 batch size=64 latent size=50 max steps=50 000
 # train_model(lr=0.0001, batch_size=64, z_size=50, steps=50000 )
 # get_gif()
-test_model()
+# test_model()
 
 

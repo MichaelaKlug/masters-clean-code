@@ -105,7 +105,7 @@ class SimpleEnv(MiniGridEnv):
 
 class UnlockDataDV3(GroundTruthData):
 
-    name = "unlock_object"
+    name = "unlock_object_dv3"
 
     factor_names = ("agent_x", "agent_y", "direction", "door_y", "key_x", "key_y")
 

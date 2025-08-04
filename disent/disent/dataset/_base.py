@@ -178,7 +178,6 @@ class DisentDataset(Dataset, LengthIter):
 
     @property
     def is_ground_truth(self) -> bool:
-        print('what is the dataset?', self._dataset)
         return isinstance(self._dataset, GroundTruthData)
 
     @property
@@ -276,7 +275,10 @@ class DisentDataset(Dataset, LengthIter):
     def dataset_get(self, idx, mode: str):
         # WHEN WE ARE PLOTTING THE SAMPLER HEAT MAPS WE NEED TO SEND INDEX AND WHETHERE IT IS THE START POINT OR THE PAIR
         idxorig=idx
-        idx=idx[0]
+        if isinstance(idx, tuple):
+            # if we have a pair, we need to get the first element of the pair
+            idx = idx[0]
+        # idx=idx[0]
         """
         Gets the specified datapoint, using the specified mode.
         - raw: direct untransformed/unaugmented observations
@@ -321,6 +323,7 @@ class DisentDataset(Dataset, LengthIter):
     # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - #
 
     def _dataset_get_observation(self, *idxs):
+        
         xs, xs_targ = zip(*(self.dataset_get(idx, mode="pair") for idx in idxs))
         # handle cases
         obs = {"x_targ": xs_targ}
@@ -395,8 +398,12 @@ class DisentDataset(Dataset, LengthIter):
     @groundtruth_only
     def dataset_sample_batch_with_factors(self, num_samples: int, mode: str, collate: bool = True):
         """Sample a batch of observations X and factors Y."""
-        #factors = self.gt_data.sample_unlock_factors(num_samples)
-        factors = self.gt_data.sample_factors(num_samples)
+        if "unlock" in self._dataset.name:
+            print('an unlock dataset')
+            factors = self.gt_data.sample_unlock_factors(num_samples)
+        else:
+            print('not an unlock dataset')
+            factors = self.gt_data.sample_factors(num_samples)
         batch = self.dataset_batch_from_factors(factors, mode=mode, collate=collate)
         return batch, (default_collate(factors) if collate else factors)
 

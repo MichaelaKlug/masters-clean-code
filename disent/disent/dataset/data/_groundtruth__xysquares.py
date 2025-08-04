@@ -275,7 +275,6 @@ class XYSingleSquareData(GroundTruthData):
                     f"number of possible placements: {self._placements} is less than the given grid size: {grid_size}, reduced grid size from: {grid_size} -> {self._placements}"
                 )
             self._placements = min(self._placements, grid_size)
-        print('placements: ',self._placements)
         # self.accum= np.zeros((64, 64))
         self.accum_start = np.zeros((self.factor_sizes[1], self.factor_sizes[0]), dtype=int)
         self.accum_pair = np.zeros((self.factor_sizes[1], self.factor_sizes[0]), dtype=int)
@@ -297,7 +296,7 @@ class XYSingleSquareData(GroundTruthData):
         new_idx=abs(idx[0])
         fx, fy = self.idx_to_pos(new_idx)
         offset, space, size = self._offset, self._spacing, self._square_size
-        #print('original fx and fy are ', fx,fy)
+ 
         if idx[0]<0 or idx[1]=='second':
             for i in range(self.n):
                 # 4 possible moves: right, left, down, up

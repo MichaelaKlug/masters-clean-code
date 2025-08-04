@@ -143,6 +143,9 @@ class UnlockData(GroundTruthData):
         super().__init__(transform=transform)
         self.indices=[]
     def _get_observation(self, idx):
+        if isinstance(idx, tuple):
+            # if we have a pair, we need to get the first element of the pair
+            idx=idx[0]
      
         # x, y, s, c = self.idx_to_pos(idx) #shown from xy_object code
         orig_list=self.idx_to_pos(idx)

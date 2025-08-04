@@ -151,6 +151,10 @@ class XYObjectData(GroundTruthData):
         super().__init__(transform=transform)
 
     def _get_observation(self, idx):
+        if isinstance(idx, tuple):
+            # if we have a pair, we need to get the first element of the pair
+            idx=idx[0]
+       
         x, y, s, c = self.idx_to_pos(idx)
         s = self._square_scales[s]
         r = (self._max_square_size - s) // 2

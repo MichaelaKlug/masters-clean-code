@@ -213,7 +213,7 @@ class StateSpace(LengthIter):
 
     def sample_unlock_factors(self, size=None, f_idxs: Optional[NonNormalisedFactorIdxs] = None) -> np.ndarray:
             # get factor sizes 
-	       
+          
             if f_idxs is None:
                 f_sizes = self.__factor_sizes
             else:
@@ -231,7 +231,7 @@ class StateSpace(LengthIter):
                     factor=np.random.randint(0, f_sizes)
                 # factors[i]  = [x + 1 if i != 2 else x for i, x in enumerate(factor)]
                 factors[i]=factor
-            
+
             return factors
 
 
