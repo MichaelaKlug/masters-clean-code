@@ -4,7 +4,7 @@ import math
 from typing import Any, Callable
 
 import numpy as np
-
+import cv2
 from minigrid.core.constants import OBJECT_TO_IDX, TILE_PIXELS
 from minigrid.core.world_object import Wall, WorldObj
 from minigrid.utils.rendering import (
@@ -172,13 +172,18 @@ class Grid:
 
         if obj is not None:
             obj.render(img)
-
+     
         # Overlay the agent on top
         if agent_dir is not None:
-            tri_fn = point_in_triangle(
-                (0.12, 0.19),
+            points=[(0.12, 0.19),
                 (0.87, 0.50),
-                (0.12, 0.81),
+                (0.12, 0.81)]
+            
+            #scaled_points = [tuple(v * 2 for v in p) for p in points]
+            tri_fn = point_in_triangle(
+                points[0],
+                points[1],
+                points[2]
             )
 
             # Rotate the agent based on its direction
@@ -220,6 +225,9 @@ class Grid:
         img = np.zeros(shape=(height_px, width_px, 3), dtype=np.uint8)
 
         # Render the grid
+        agent_y=0
+        agent_x=0
+        dir=0
         for j in range(0, self.height):
             for i in range(0, self.width):
                 cell = self.get(i, j)
@@ -233,12 +241,85 @@ class Grid:
                     tile_size=tile_size,
                 )
 
+                if agent_dir is not None:
+                    agent_x=agent_pos[0]
+                    agent_y=agent_pos[1]
+                    dir=agent_dir
+
                 ymin = j * tile_size
                 ymax = (j + 1) * tile_size
                 xmin = i * tile_size
                 xmax = (i + 1) * tile_size
-                img[ymin:ymax, xmin:xmax, :] = tile_img
 
+                img[ymin:ymax, xmin:xmax, :] = tile_img
+        # if agent_dir is not None:
+            
+
+        #     def rotate_points(points, angle_rad):
+        #         """
+        #         Rotate 2D points around their centroid by angle in radians.
+        #         points: np.array shape (N, 2)
+        #         angle_rad: rotation angle in radians
+        #         Returns rotated points as np.array (N, 2)
+        #         """
+        #         centroid = points.mean(axis=0)
+        #         translated = points - centroid
+
+        #         cos_theta = np.cos(angle_rad)
+        #         sin_theta = np.sin(angle_rad)
+
+        #         rot_matrix = np.array([[cos_theta, -sin_theta],
+        #                             [sin_theta, cos_theta]])
+
+        #         rotated = translated @ rot_matrix.T  # matrix multiply
+
+        #         return rotated + centroid
+
+                
+        #     print("drawing object across grid")
+        #     print(agent_x,agent_y)
+
+        #     x2=(agent_x+1)*tile_size
+        #     y2=(agent_y+1)*(tile_size) -0.5*tile_size
+        #     x1=(agent_x)*tile_size
+        #     y1=(agent_y)*tile_size
+        #     x3=agent_x*tile_size
+        #     y3=(agent_y+1)*tile_size
+        #     points=[(x1,y1 ),
+        #         (x2, y2),
+        #         (x3, y3)]
+        #     # line_1= math.sqrt((x2 - x1)**2 + (y2 - y1)**2)
+        #     # line_2= math.sqrt((x2 - x3)**2 + (y2 - y3)**2)
+        #     # line_3= math.sqrt((x1 - x3)**2 + (y1 - y3)**2)
+
+            
+        #     # print('line 1 : ',line_1,'\n' )
+        #     # print('line 2 : ',line_2,'\n' )
+        #     # print('line 3 : ',line_3,'\n' )
+        #     pts = np.array(points, dtype=np.int32)
+           
+            
+
+        #     # If shape is (N, 2), reshape to (N, 1, 2)
+        #     #pts = pts.reshape((-1, 1, 2))
+        #     # Rotate the agent based on its direction
+        #     #cv2.fillPoly(img, [pts_to_draw], color=(255, 0, 0))
+        #     # print('dir is ', dir)
+            
+
+        #     centroid = pts.mean(axis=0)
+        #     # Scale points around centroid by 1.2
+        #     scale_factor = 2
+        #     scaled_pts = centroid + scale_factor * (pts - centroid)
+
+        #     angle = (np.pi / 2) * dir  # rotate 90 degrees clockwise
+        #     rotated_points = rotate_points(scaled_pts, angle)
+        #     # Convert to int32 and reshape for OpenCV
+        #     #pts_to_draw = scaled_pts.astype(np.int32).reshape((-1, 1, 2))
+        #     pts_to_draw = rotated_points.astype(np.int32).reshape((-1, 1, 2))   
+        #     cv2.fillPoly(img, [pts_to_draw], color=(255, 0, 0))
+
+     
         return img
 
     def encode(self, vis_mask: np.ndarray | None = None) -> np.ndarray:
