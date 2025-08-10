@@ -33,7 +33,9 @@ from disent.dataset.util.state_space import StateSpace
 
 class GroundTruthPairOrigSampler(BaseDisentSampler):
     def uninit_copy(self) -> "GroundTruthPairOrigSampler":
-        return GroundTruthPairOrigSampler(p_k=self.p_k)
+        new_sampler = GroundTruthPairOrigSampler(p_k=self.p_k)
+        new_sampler.indices = self.indices.copy()
+        return new_sampler
 
     def __init__(
         self,
@@ -49,6 +51,7 @@ class GroundTruthPairOrigSampler(BaseDisentSampler):
         self.p_k = p_k
         # dataset variable
         self._state_space: Optional[StateSpace] = None
+        self.indices = []
 
     def _init(self, dataset):
         assert isinstance(
@@ -62,6 +65,7 @@ class GroundTruthPairOrigSampler(BaseDisentSampler):
 
     def _sample_idx(self, idx):
         f0, f1 = self.datapoint_sample_factors_pair(idx)
+        self.indices.append(self._state_space.pos_to_idx(f0))
         return (
             (self._state_space.pos_to_idx(f0),'first'),
             (self._state_space.pos_to_idx(f1),'second'),

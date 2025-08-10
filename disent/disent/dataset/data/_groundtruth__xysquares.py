@@ -281,6 +281,7 @@ class XYSingleSquareData(GroundTruthData):
         # center elements
         self._offset = (self._width - (self._square_size + (self._placements - 1) * self._spacing)) // 2
         # initialise parents -- they depend on self.factors
+        self.indices=[]
         super().__init__(transform=transform)
 
     def _get_observation(self, idx):
@@ -318,6 +319,7 @@ class XYSingleSquareData(GroundTruthData):
                 #print('new fx and fy are ', fx,fy,'\n')
             self.accum_pair[fx, fy] += 1
         elif idx[0]>=0 or idx[1]=='first':
+            self.indices.append(idx[0])
             self.accum_start[fx, fy] += 1
         
         #print('x and y are : ',x,y)

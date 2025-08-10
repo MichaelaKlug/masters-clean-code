@@ -399,10 +399,8 @@ class DisentDataset(Dataset, LengthIter):
     def dataset_sample_batch_with_factors(self, num_samples: int, mode: str, collate: bool = True):
         """Sample a batch of observations X and factors Y."""
         if "unlock" in self._dataset.name:
-            print('an unlock dataset')
             factors = self.gt_data.sample_unlock_factors(num_samples)
         else:
-            print('not an unlock dataset')
             factors = self.gt_data.sample_factors(num_samples)
         batch = self.dataset_batch_from_factors(factors, mode=mode, collate=collate)
         return batch, (default_collate(factors) if collate else factors)
