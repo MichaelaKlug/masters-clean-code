@@ -1,0 +1,2 @@
+inf train,inf test,disentanglment,completenes,Learning rate,Batch size,Latent size,Other,Max steps,Run description
+0.9451666666666666,0.7783333333333333,0.3721828452228666,0.26811222937806994,0.0001,139,99, ,60000,"unlock data, orig sampler, beta=0.00316"

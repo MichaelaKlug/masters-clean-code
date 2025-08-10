@@ -190,6 +190,7 @@ class RlSampler(BaseDisentSampler):
 
     def _sample_idx(self, idx):
         #print('rl sampling unlock factors')
+        
         sampled_factors = self._state_space.idx_to_pos(idx)
 
         """

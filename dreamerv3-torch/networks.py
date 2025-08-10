@@ -384,7 +384,11 @@ class RSSM(nn.Module):
         z_thresh = 0.5 * z_deltas_min + 0.5 * z_deltas_max  # (B, 1)
 
         # [3] shared elements that need to be averaged, computed per pair in the batch
-        share_mask = z_deltas < z_thresh  # broadcast (B, Z) and (B, 1) to get (B, Z)
+        #this is the correct behaviour
+        #share_mask = z_deltas < z_thresh  # broadcast (B, Z) and (B, 1) to get (B, Z)
+        
+        #we want to see what happens if we use opposite behaviour.
+        share_mask = z_deltas >= z_thresh
 
         # [4.a] compute average representations
         # - this is the only difference between the Ada-ML-VAE

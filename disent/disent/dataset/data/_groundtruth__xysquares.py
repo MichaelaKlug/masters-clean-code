@@ -317,10 +317,8 @@ class XYSingleSquareData(GroundTruthData):
                 # fy+=choice[1]
                 #print('new fx and fy are ', fx,fy,'\n')
             self.accum_pair[fx, fy] += 1
-            self.count_pair+=1
         elif idx[0]>=0 or idx[1]=='first':
             self.accum_start[fx, fy] += 1
-            self.count_start+=1
         
         #print('x and y are : ',x,y)
         # draw square onto image

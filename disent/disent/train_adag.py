@@ -41,12 +41,12 @@ from disent.model.ae import EncoderLinear
 #from _groundtruth__unlockobject import UnlockData
 
 #from _groundtruth__pair_orig import GroundTruthPairOrigSampler, RlSampler
-from disent.dataset.sampling import GroundTruthPairSampler,GroundTruthPairOrigSampler
+from disent.dataset.sampling import GroundTruthPairSampler,GroundTruthPairOrigSampler, GroundTruthPairOrigSamplerUnlock
 
 import itertools
 import time
 
-from _groundtruth__trajectories import EpisodeData
+# from _groundtruth__trajectories import EpisodeData
 
 import torch.distributed as dist
 
@@ -77,7 +77,7 @@ def train_model(lr, batch_size, z_size, steps):
     #   TRAINING USING DV3 encodings
     #===============================================
     data=UnlockData()
-    dataset = DisentDataset(dataset=data, sampler=GroundTruthPairOrigSampler(), transform=ToImgTensorF32())
+    dataset = DisentDataset(dataset=data, sampler=GroundTruthPairOrigSamplerUnlock(), transform=ToImgTensorF32())
     dataloader = DataLoader(dataset=dataset, batch_size=batch_size, shuffle=True, num_workers=0)
 
 
@@ -93,7 +93,7 @@ def train_model(lr, batch_size, z_size, steps):
             optimizer="adam",
             optimizer_kwargs=dict(lr=lr),
             loss_reduction="mean_sum",
-            beta=4,
+            beta=0.00316,
             ada_average_mode="gvae",
             ada_thresh_mode="kl",
         ),
@@ -107,8 +107,8 @@ def train_model(lr, batch_size, z_size, steps):
    
     
     # # Save model
-    # model_path = f"model_lr{lr}_bs{batch_size}_z{z_size}_steps{steps}.pth"
-    # torch.save(model.state_dict(), model_path)
+    model_path = f"model_lr{lr}_bs{batch_size}_z{z_size}_steps{steps}.pth"
+    torch.save(model.state_dict(), model_path)
     end_time = time.time()  # ⏱️ End timing
     elapsed_time = end_time - start_time
     get_repr = lambda x: framework.encode(x.to(framework.device))
@@ -150,6 +150,17 @@ def write_metrics(metric,lr,batch_size,z_size,steps,description):
 
 
 if __name__ == '__main__':
-    metrics = train_model(lr=1e-3, batch_size=4, z_size=6, steps=50000)
-    write_metrics(metrics, 0.001, 4, 6, 50000, 'xy object dataset, orig sampler')
+    metrics = train_model(lr=1e-4, batch_size=139, z_size=99, steps=60000)
+    write_metrics(metrics, lr=0.0001, batch_size=139, z_size=99, steps=60000, description='unlock data, orig sampler, beta=0.00316')
 
+"""
+number: 60  
+value: 0.8552421776927907  
+datetime_start: 2025-07-30 22:18:48.473244  
+datetime_complete: 2025-07-30 23:18:35.984626  
+duration: 0 days 00:59:47.511382  
+params_batch_size: 139  
+params_beta: 0.00316  
+params_latent_size: 99  
+state: COMPLETE
+"""
