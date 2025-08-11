@@ -93,16 +93,16 @@ def train_model(lr, batch_size, z_size, steps):
             optimizer="adam",
             optimizer_kwargs=dict(lr=lr),
             loss_reduction="mean_sum",
-            beta=0.00316,
+            beta=0.001,
             ada_average_mode="gvae",
             ada_thresh_mode="kl",
         ),
     )
     
-    trainer = L.Trainer(max_steps=steps, logger=False)
+    trainer = L.Trainer(max_steps=steps, logger=False,enable_checkpointing=False)
     trainer.fit(framework, dataloader)
 
-    trainer.save_checkpoint("trained_adag_0807.ckpt")
+    # trainer.save_checkpoint("trained_adag_0807.ckpt")
     
    
     
@@ -150,8 +150,8 @@ def write_metrics(metric,lr,batch_size,z_size,steps,description):
 
 
 if __name__ == '__main__':
-    metrics = train_model(lr=1e-4, batch_size=139, z_size=99, steps=60000)
-    write_metrics(metrics, lr=0.0001, batch_size=139, z_size=99, steps=60000, description='unlock data, orig sampler, beta=0.00316')
+    metrics = train_model(lr=0.0001, batch_size=153, z_size=90, steps=60000)
+    write_metrics(metrics, lr=0.0001, batch_size=153, z_size=90, steps=60000, description='unlock data, orig sampler, beta=0.001')
 
 """
 number: 60  
@@ -163,4 +163,17 @@ params_batch_size: 139
 params_beta: 0.00316  
 params_latent_size: 99  
 state: COMPLETE
+"""
+
+"""
+number: 54
+value: 0.8173209286995717
+datetime_start: 2025-08-10 10:35:13.209652
+datetime_complete: 2025-08-10 11:37:48.441556
+duration: 0 days 01:02:35.231904
+params_batch_size: 153
+params_beta: 0.001
+params_latent_size: 90
+state: COMPLETE
+
 """
