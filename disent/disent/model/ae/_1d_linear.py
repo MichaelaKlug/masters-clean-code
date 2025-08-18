@@ -35,7 +35,7 @@ from disent.model import DisentEncoder
 
 
 class EncoderLinear1d(DisentEncoder):
-    def __init__(self, x_shape=(1, 32), z_size=6, z_multiplier=1):
+    def __init__(self, x_shape=(1,32, 32), z_size=6, z_multiplier=1):
         super().__init__(x_shape=x_shape, z_size=z_size, z_multiplier=z_multiplier)
 
         self.model = nn.Sequential(
@@ -47,7 +47,7 @@ class EncoderLinear1d(DisentEncoder):
 
 
 class DecoderLinear1d(DisentDecoder):
-    def __init__(self, x_shape=(1, 32), z_size=6, z_multiplier=1):
+    def __init__(self, x_shape=(1,32, 32), z_size=6, z_multiplier=1):
         super().__init__(x_shape=x_shape, z_size=z_size, z_multiplier=z_multiplier)
 
         self.model = nn.Sequential(

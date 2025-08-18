@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+# from disent.disent.dataset.data._groundtruth__xysquares import XYSingleSquareData
 from minigrid.core.constants import COLOR_NAMES
 from minigrid.core.grid import Grid
 from minigrid.core.mission import MissionSpace
@@ -23,7 +24,7 @@ import torch
 from torch.utils.data import DataLoader
 
 from disent.dataset import DisentDataset
-from disent.dataset.data import XYObjectData, UnlockData
+from disent.dataset.data import XYObjectData, UnlockData, UnlockDataDV3,RlUnlockData
 
 #from disent.dataset.sampling import SingleSampler,GroundTruthPairOrigSampler
 from disent.dataset.transform import ToImgTensorF32
@@ -31,8 +32,8 @@ from disent.frameworks.vae import BetaVae, AdaVae
 from disent.metrics import metric_dci
 from disent.metrics import metric_mig
 from disent.model import AutoEncoder
-from disent.model.ae import DecoderConv64
-from disent.model.ae import EncoderConv64
+from disent.model.ae import DecoderConv64,DecoderConv32
+from disent.model.ae import EncoderConv64,EncoderConv32
 from disent.schedule import CyclicSchedule
 
 from disent.model.ae import DecoderLinear
@@ -41,7 +42,7 @@ from disent.model.ae import EncoderLinear
 #from _groundtruth__unlockobject import UnlockData
 
 #from _groundtruth__pair_orig import GroundTruthPairOrigSampler, RlSampler
-from disent.dataset.sampling import GroundTruthPairSampler,GroundTruthPairOrigSampler, GroundTruthPairOrigSamplerUnlock
+from disent.dataset.sampling import GroundTruthPairSampler,GroundTruthPairOrigSampler, GroundTruthPairOrigSamplerUnlock, RlSampler
 
 import itertools
 import time
@@ -53,7 +54,7 @@ import torch.distributed as dist
 def is_main_process():
     return not dist.is_initialized() or dist.get_rank() == 0
 
-def train_model(lr, batch_size, z_size, steps):
+def train_model(lr, batch_size, z_size, steps,beta, num_steps=0):
     print(f"Training with lr={lr}, batch_size={batch_size}, z_size={z_size}, steps={steps}")
     start_time = time.time()
 
@@ -61,9 +62,10 @@ def train_model(lr, batch_size, z_size, steps):
     #   TRAINING USING NORMAL SAMPLER
     #===============================================
     # data=XYObjectData()
-    # #data=UnlockData()
-    # dataset = DisentDataset(dataset=data, sampler=GroundTruthPairOrigSampler(), transform=ToImgTensorF32())
-    # dataloader = DataLoader(dataset=dataset, batch_size=batch_size, shuffle=True, num_workers=0)
+    data=UnlockData()
+    #data=RlUnlockData(n=num_steps)
+    dataset = DisentDataset(dataset=data, sampler=GroundTruthPairOrigSamplerUnlock(), transform=ToImgTensorF32())
+    dataloader = DataLoader(dataset=dataset, batch_size=batch_size, shuffle=True, num_workers=0)
 
     #===============================================
     #   TRAINING USING RL SAMPLER
@@ -76,12 +78,13 @@ def train_model(lr, batch_size, z_size, steps):
     #===============================================
     #   TRAINING USING DV3 encodings
     #===============================================
-    data=UnlockData()
-    dataset = DisentDataset(dataset=data, sampler=GroundTruthPairOrigSamplerUnlock(), transform=ToImgTensorF32())
-    dataloader = DataLoader(dataset=dataset, batch_size=batch_size, shuffle=True, num_workers=0)
+    # data=UnlockDataDV3(latent_shape="2D")
+    # dataset = DisentDataset(dataset=data, sampler=GroundTruthPairOrigSamplerUnlock(), transform=ToImgTensorF32())
+    # dataloader = DataLoader(dataset=dataset, batch_size=batch_size, shuffle=True, num_workers=0)
 
 
     data_x_shape=(3,64,64)
+    #data_x_shape=(1,32,32)
     model = AutoEncoder(
         encoder=EncoderConv64(x_shape=data_x_shape, z_size=z_size, z_multiplier=2),
         decoder=DecoderConv64(x_shape=data_x_shape, z_size=z_size),
@@ -93,7 +96,7 @@ def train_model(lr, batch_size, z_size, steps):
             optimizer="adam",
             optimizer_kwargs=dict(lr=lr),
             loss_reduction="mean_sum",
-            beta=0.001,
+            beta=beta,
             ada_average_mode="gvae",
             ada_thresh_mode="kl",
         ),
@@ -107,8 +110,9 @@ def train_model(lr, batch_size, z_size, steps):
    
     
     # # Save model
-    model_path = f"model_lr{lr}_bs{batch_size}_z{z_size}_steps{steps}.pth"
-    torch.save(model.state_dict(), model_path)
+    # model_path = f"model_lr{lr}_bs{batch_size}_z{z_size}_steps{steps}_beta{beta}.pth"
+    # # torch.save(model.state_dict(), model_path)
+    # trainer.save_checkpoint(model_path)
     end_time = time.time()  # ⏱️ End timing
     elapsed_time = end_time - start_time
     get_repr = lambda x: framework.encode(x.to(framework.device))
@@ -150,8 +154,32 @@ def write_metrics(metric,lr,batch_size,z_size,steps,description):
 
 
 if __name__ == '__main__':
-    metrics = train_model(lr=0.0001, batch_size=153, z_size=90, steps=60000)
-    write_metrics(metrics, lr=0.0001, batch_size=153, z_size=90, steps=60000, description='unlock data, orig sampler, beta=0.001')
+    
+    # steps=[0,1,20,40,60,80,100,110]
+    # for i in steps:
+    #     metrics = train_model(lr=0.0001, batch_size=64, z_size=96, steps=60000,beta=0.001,num_steps=i)
+    #     write_metrics(metrics, lr=0.0001, batch_size=64, z_size=96, steps=60000, description=f'unlock data, rl sampler steps={i}, beta=0.001')
+    metrics = train_model(lr=0.0001, batch_size=64, z_size=96, steps=60000,beta=0.001,num_steps=0)
+    write_metrics(metrics, lr=0.0001, batch_size=64, z_size=96, steps=60000, description=f'unlock data, orig sampler, beta=0.001')
+    metrics = train_model(lr=0.0001, batch_size=64, z_size=50, steps=60000,beta=0.001,num_steps=0)
+    write_metrics(metrics, lr=0.0001, batch_size=64, z_size=50, steps=60000, description=f'unlock data, orig sampler, beta=0.001')
+
+    
+
+"""
+DV3 2D latent space as image
+number: 41
+value: 0.5532996499981268
+datetime_start: 2025-08-10 02:06:42.920916
+datetime_complete: 2025-08-10 03:03:23.823959
+duration: 0 days 00:56:40.903043
+params_batch_size: 64
+params_beta: 0.001
+params_latent_size: 96
+params_max_steps: 136899
+state: COMPLETE
+
+"""
 
 """
 number: 60  
@@ -177,3 +205,4 @@ params_latent_size: 90
 state: COMPLETE
 
 """
+

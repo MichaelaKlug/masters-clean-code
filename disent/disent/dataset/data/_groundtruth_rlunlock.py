@@ -115,7 +115,7 @@ class SimpleEnv(MiniGridEnv):
 
 class RlUnlockData(GroundTruthData):
 
-    name = "episode_object"
+    name = "rl_unlock_object"
     factor_names = ("agent_x", "agent_y", "direction", "door_y", "key_x", "key_y")
 
     #=========================================================
@@ -165,6 +165,8 @@ class RlUnlockData(GroundTruthData):
         
         #(agent_x,agent_y,agent_dir,door_pos,key_x,key_y)
         #actions: 0=turn left, 1=turn right, 2=move forward
+        if isinstance(idx,tuple):
+            idx=idx[0]
         orig_list=self.idx_to_pos(abs(idx))
         modified_lst = [x + 1 if i != 2 else x for i, x in enumerate(orig_list)]
 
@@ -206,7 +208,6 @@ class RlUnlockData(GroundTruthData):
         factors=tuple(modified_lst)
         obs=self._obs_dictionary[factors]
         returned_state=obs
-        print('returned obs shape is ', returned_state.shape)
         gray_img = obs[:, :, 0]   # Convert to grayscale: [B, H, W]
         self.accum +=gray_img.astype(np.float32)
        

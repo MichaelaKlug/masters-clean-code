@@ -204,9 +204,9 @@ class RlSampler(BaseDisentSampler):
         """
         # print('sampled factors are ', sampled_factors)
         new_idx=idx
-        # while sampled_factors[0]==sampled_factors[4] and sampled_factors[1]==sampled_factors[5]:
-        #     new_idx = random.randint(0, 4095)
-        #     sampled_factors = self._state_space.idx_to_pos(new_idx)
+        while sampled_factors[0]==sampled_factors[4] and sampled_factors[1]==sampled_factors[5]:
+            new_idx = random.randint(0, 4095)
+            sampled_factors = self._state_space.idx_to_pos(new_idx)
 
         # return the samples
         # return (new_idx,-1*new_idx)
