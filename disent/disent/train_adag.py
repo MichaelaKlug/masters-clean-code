@@ -110,9 +110,9 @@ def train_model(lr, batch_size, z_size, steps,beta, num_steps=0):
    
     
     # # Save model
-    # model_path = f"model_lr{lr}_bs{batch_size}_z{z_size}_steps{steps}_beta{beta}.pth"
-    # # torch.save(model.state_dict(), model_path)
-    # trainer.save_checkpoint(model_path)
+    model_path = f"model_lr{lr}_bs{batch_size}_z{z_size}_steps{steps}_beta{beta}_1808.pth"
+    # torch.save(model.state_dict(), model_path)
+    trainer.save_checkpoint(model_path)
     end_time = time.time()  # ⏱️ End timing
     elapsed_time = end_time - start_time
     get_repr = lambda x: framework.encode(x.to(framework.device))
