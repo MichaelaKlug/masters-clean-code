@@ -150,7 +150,10 @@ class RlUnlockData(GroundTruthData):
             image_store = pickle.load(f)
         self._obs_dictionary= image_store
         super().__init__(transform=transform)
-
+    def hamming_delta(self,f0, f1):
+        f0, f1 = np.asarray(f0), np.asarray(f1)
+        return int(np.sum(f0 != f1))
+   
     def _get_observation(self, idx):
 
         #=============================================================
@@ -165,44 +168,50 @@ class RlUnlockData(GroundTruthData):
         
         #(agent_x,agent_y,agent_dir,door_pos,key_x,key_y)
         #actions: 0=turn left, 1=turn right, 2=move forward
+        num_factors=len(self.factor_sizes)
         if isinstance(idx,tuple):
             idx=idx[0]
         orig_list=self.idx_to_pos(abs(idx))
         modified_lst = [x + 1 if i != 2 else x for i, x in enumerate(orig_list)]
-
+        first_sample=modified_lst
+        valid_traj=False #valid trajectory means that the final state mudt differ to original state by AT MOST d-1 factors (i.e. not all factors changed)
         if idx < 0:
-            door = modified_lst[3]
-            keyx = modified_lst[4]
-            keyy = modified_lst[5]
-            for i in range(self.n):
-                agent_x, agent_y, agent_dir = modified_lst[0], modified_lst[1], modified_lst[2]
-                new_x, new_y, new_dir = agent_x, agent_y, agent_dir
-                
-                possible_moves=[0,1]
-                if agent_dir == 0:
-                    if (agent_x+1)<=4 and not((agent_x+1)==keyx and agent_y==keyy):
-                        possible_moves.append((2,agent_x+1,agent_y))
-                elif agent_dir == 1:
-                    if (agent_y+1)<=4 and not((agent_y+1)==keyy and agent_x==keyx):
-                        possible_moves.append((2,agent_x,agent_y+1))
-                elif agent_dir == 2:
-                    if (agent_x-1)>0 and not((agent_x-1)==keyx and agent_y==keyy):
-                        possible_moves.append((2,agent_x-1,agent_y))
-                elif agent_dir == 3:
-                    if (agent_y-1)>0 and not((agent_y-1)==keyy and agent_x==keyx):
-                        possible_moves.append((2,agent_x,agent_y-1))
-                # Randomly choose action: 0 = left turn, 1 = right turn, 2 = move forward
-                choice = random.choice(possible_moves)
-                #print('choice is ', choice)
-                if choice == 0:
-                    new_dir = (agent_dir - 1) % 4
-                elif choice == 1:
-                    new_dir = (agent_dir + 1) % 4
-                else:
-                    new_x=choice[1]
-                    new_y=choice[2]
-                modified_lst=(new_x,new_y,new_dir,door,keyx,keyy)
-       
+            while valid_traj==False:
+
+                door = modified_lst[3]
+                keyx = modified_lst[4]
+                keyy = modified_lst[5]
+                for i in range(self.n):
+                    agent_x, agent_y, agent_dir = modified_lst[0], modified_lst[1], modified_lst[2]
+                    new_x, new_y, new_dir = agent_x, agent_y, agent_dir
+                    
+                    possible_moves=[0,1]
+                    if agent_dir == 0:
+                        if (agent_x+1)<=4 and not((agent_x+1)==keyx and agent_y==keyy):
+                            possible_moves.append((2,agent_x+1,agent_y))
+                    elif agent_dir == 1:
+                        if (agent_y+1)<=4 and not((agent_y+1)==keyy and agent_x==keyx):
+                            possible_moves.append((2,agent_x,agent_y+1))
+                    elif agent_dir == 2:
+                        if (agent_x-1)>0 and not((agent_x-1)==keyx and agent_y==keyy):
+                            possible_moves.append((2,agent_x-1,agent_y))
+                    elif agent_dir == 3:
+                        if (agent_y-1)>0 and not((agent_y-1)==keyy and agent_x==keyx):
+                            possible_moves.append((2,agent_x,agent_y-1))
+                    # Randomly choose action: 0 = left turn, 1 = right turn, 2 = move forward
+                    choice = random.choice(possible_moves)
+                    #print('choice is ', choice)
+                    if choice == 0:
+                        new_dir = (agent_dir - 1) % 4
+                    elif choice == 1:
+                        new_dir = (agent_dir + 1) % 4
+                    else:
+                        new_x=choice[1]
+                        new_y=choice[2]
+                    modified_lst=(new_x,new_y,new_dir,door,keyx,keyy)
+                if self.hamming_delta(first_sample, modified_lst) <= num_factors - 1:
+                    valid_traj=True
+
         #print('next step ', modified_lst,'\n')
         
         factors=tuple(modified_lst)

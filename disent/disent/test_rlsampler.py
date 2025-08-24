@@ -50,7 +50,8 @@ import imageio
 import minigrid
 print("Minigrid loaded from:", minigrid.__file__)
 import sys
-
+import numpy as np
+import matplotlib.pyplot as plt
 
 
 from disent.dataset.data import XYSquaresData
@@ -61,7 +62,7 @@ def train_model(lr, batch_size, z_size, steps):
     #===============================================
     #   TRAINING USING NORMAL SAMPLER
     #===============================================
-    sampler=GroundTruthPairOrigSampler()
+    sampler=RlSampler()
     data = XYSingleSquareData(grid_spacing=4,n=2)
     dataset = DisentDataset(dataset=data, sampler=sampler, transform=ToImgTensorF32())
     dataloader = DataLoader(dataset=dataset, batch_size=batch_size, shuffle=True, num_workers=0)
@@ -94,14 +95,29 @@ def train_model(lr, batch_size, z_size, steps):
             optimizer="adam",
             optimizer_kwargs=dict(lr=1e-4),
             loss_reduction="mean_sum",
-            beta=4,
+            beta=0.001,
             ada_average_mode="gvae",
             ada_thresh_mode="kl",
         ),
     )
     
-    trainer = L.Trainer(max_steps=1000, logger=False)
+    trainer = L.Trainer(max_steps=60000, logger=False)
     trainer.fit(framework, dataloader)
+
+    # Euclidean distances
+    
+    start_points = np.array(data.start_points)
+    end_points = np.array(data.end_points)
+
+    distances = np.linalg.norm(end_points - start_points, axis=1)
+
+    plt.hist(distances, bins=30, density=True, cmap='viridis')
+    plt.xlabel("Distance")
+    plt.ylabel("Frequency")
+    plt.title("Distribution of Distances")
+    plt.savefig('histogram.png')
+    plt.show()
+
 
 
 
@@ -130,36 +146,6 @@ def train_model(lr, batch_size, z_size, steps):
 
     plt.close()  # Close plot to free memory
 
-
-
-        
-    
-        
-        # # Save model
-        # model_path = f"model_lr{lr}_bs{batch_size}_z{z_size}_steps{steps}.pth"
-        # torch.save(model.state_dict(), model_path)
-        # end_time = time.time()  # ⏱️ End timing
-        # elapsed_time = end_time - start_time
-        # get_repr = lambda x: framework.encode(x.to(framework.device))
-        # metrics = {
-        #     **metric_dci(dataset, get_repr, num_train=1000, num_test=500, show_progress=True),
-        # }
-        # print(f"Training completed in {elapsed_time:.2f} seconds ({elapsed_time / 60:.2f} minutes).")
-        # print(metrics)
-
-    # plt.figure()
-    # plt.imshow(data.accum_start, cmap='hot')#, vmin=np.min(data.accum_start), vmax=np.max(data.accum_start))
-    # plt.colorbar()
-    # plt.savefig(f'square_spacing4_start.png')
-    # plt.close()
-
-    # plt.figure()
-    # plt.imshow(data.accum_pair, cmap='hot')#, vmin=np.min(data.accum_pair), vmax=np.max(data.accum_pair))
-    # plt.colorbar()
-    # plt.savefig(f'square_spacing4_pair.png')
-    # plt.close()
-
-    # print('start accum is ', data.accum_start)
     
 def test_model():
     #data=XYSquaresData(grid_spacing=3)
@@ -186,7 +172,7 @@ def get_gif():
     # Setup
     data = XYSingleSquareData(grid_spacing=4,n=1)
     #data=RlUnlockData(n=1)
-    dataset = DisentDataset(dataset=data, sampler=GroundTruthPairOrigSampler(), transform=ToImgTensorF32())
+    dataset = DisentDataset(dataset=data, sampler=RlSampler(), transform=ToImgTensorF32())
     dataloader = DataLoader(dataset=dataset, batch_size=1, shuffle=True, num_workers=0)
     batch = next(iter(dataloader))
 
@@ -250,7 +236,7 @@ def get_gif():
     # imageio.mimsave('output_minigrid2.gif', frames, duration=3)
     # print("GIF saved as output_minigrid2.gif")
    
-# train_model(0.0001, 4, 6, 100)
+# train_model(0.0001, 4, 6, 60000)
 #lr=1e-4 batch size=64 latent size=50 max steps=50 000
 # train_model(lr=0.0001, batch_size=64, z_size=50, steps=50000 )
 get_gif()

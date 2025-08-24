@@ -24,7 +24,7 @@ import torch
 from torch.utils.data import DataLoader
 
 from disent.dataset import DisentDataset
-from disent.dataset.data import XYObjectData, UnlockData, UnlockDataDV3,RlUnlockData
+from disent.dataset.data import XYObjectData, UnlockData, UnlockDataDV3,RlUnlockData,XYSingleSquareDataOrig
 
 #from disent.dataset.sampling import SingleSampler,GroundTruthPairOrigSampler
 from disent.dataset.transform import ToImgTensorF32
@@ -62,9 +62,10 @@ def train_model(lr, batch_size, z_size, steps,beta, num_steps=0):
     #   TRAINING USING NORMAL SAMPLER
     #===============================================
     # data=XYObjectData()
-    data=UnlockData()
+    # data=UnlockData()
+    data=XYSingleSquareDataOrig(grid_spacing=4)
     #data=RlUnlockData(n=num_steps)
-    dataset = DisentDataset(dataset=data, sampler=GroundTruthPairOrigSamplerUnlock(), transform=ToImgTensorF32())
+    dataset = DisentDataset(dataset=data, sampler=GroundTruthPairOrigSampler(), transform=ToImgTensorF32())
     dataloader = DataLoader(dataset=dataset, batch_size=batch_size, shuffle=True, num_workers=0)
 
     #===============================================
@@ -83,11 +84,11 @@ def train_model(lr, batch_size, z_size, steps,beta, num_steps=0):
     # dataloader = DataLoader(dataset=dataset, batch_size=batch_size, shuffle=True, num_workers=0)
 
 
-    data_x_shape=(3,64,64)
+    # data_x_shape=(3,64,64)
     #data_x_shape=(1,32,32)
     model = AutoEncoder(
-        encoder=EncoderConv64(x_shape=data_x_shape, z_size=z_size, z_multiplier=2),
-        decoder=DecoderConv64(x_shape=data_x_shape, z_size=z_size),
+        encoder=EncoderConv64(x_shape=data.x_shape, z_size=z_size, z_multiplier=2),
+        decoder=DecoderConv64(x_shape=data.x_shape, z_size=z_size),
     )
     
     framework = AdaVae(
@@ -110,9 +111,9 @@ def train_model(lr, batch_size, z_size, steps,beta, num_steps=0):
    
     
     # # Save model
-    model_path = f"model_lr{lr}_bs{batch_size}_z{z_size}_steps{steps}_beta{beta}_1808.pth"
+    # model_path = f"model_lr{lr}_bs{batch_size}_z{z_size}_steps{steps}_beta{beta}_1808.pth"
     # torch.save(model.state_dict(), model_path)
-    trainer.save_checkpoint(model_path)
+    # trainer.save_checkpoint(model_path)
     end_time = time.time()  # ⏱️ End timing
     elapsed_time = end_time - start_time
     get_repr = lambda x: framework.encode(x.to(framework.device))
@@ -122,7 +123,6 @@ def train_model(lr, batch_size, z_size, steps,beta, num_steps=0):
     print(f"Training with lr={lr}, batch_size={batch_size}, z_size={z_size}, steps={steps}")
     print(f"Training completed in {elapsed_time:.2f} seconds ({elapsed_time / 60:.2f} minutes).")
     print(metrics)
-    print('unlock dataset, orig sampler')
     return metrics
     
 def write_metrics(metric,lr,batch_size,z_size,steps,description):
@@ -159,10 +159,10 @@ if __name__ == '__main__':
     # for i in steps:
     #     metrics = train_model(lr=0.0001, batch_size=64, z_size=96, steps=60000,beta=0.001,num_steps=i)
     #     write_metrics(metrics, lr=0.0001, batch_size=64, z_size=96, steps=60000, description=f'unlock data, rl sampler steps={i}, beta=0.001')
-    metrics = train_model(lr=0.0001, batch_size=64, z_size=96, steps=60000,beta=0.001,num_steps=0)
-    write_metrics(metrics, lr=0.0001, batch_size=64, z_size=96, steps=60000, description=f'unlock data, orig sampler, beta=0.001')
-    metrics = train_model(lr=0.0001, batch_size=64, z_size=50, steps=60000,beta=0.001,num_steps=0)
-    write_metrics(metrics, lr=0.0001, batch_size=64, z_size=50, steps=60000, description=f'unlock data, orig sampler, beta=0.001')
+    metrics = train_model(lr=0.0001, batch_size=4, z_size=6, steps=57600,beta=0.01,num_steps=0)
+    write_metrics(metrics, lr=0.0001, batch_size=4, z_size=6, steps=57600, description=f'xy single square, orig sampler, orig data, beta=0.01')
+    # metrics = train_model(lr=0.0001, batch_size=64, z_size=20, steps=60000,beta=0.001,num_steps=0)
+    # write_metrics(metrics, lr=0.0001, batch_size=64, z_size=20, steps=60000, description=f'unlock data, orig sampler, beta=0.001')
 
     
 

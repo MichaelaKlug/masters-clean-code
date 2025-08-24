@@ -60,6 +60,7 @@ from disent.dataset.data._groundtruth__xyobject import XYObjectShadedData
 from disent.dataset.data._groundtruth__xysquares import XYSquaresData
 from disent.dataset.data._groundtruth__xysquares import XYSquaresMinimalData
 from disent.dataset.data._groundtruth__xysquares import XYSingleSquareData
+from disent.dataset.data._groundtruth__xysquares_original import XYSingleSquareDataOrig
 
 
 from disent.dataset.data._groundtruth__unlockobject import UnlockData
