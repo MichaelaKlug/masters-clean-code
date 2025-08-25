@@ -170,10 +170,10 @@ def test_model():
 
 def get_gif():
     # Setup
-    data = XYSingleSquareData(grid_spacing=4,n=1)
+    data = XYSingleSquareData(grid_spacing=4,n=0)
     #data=RlUnlockData(n=1)
-    dataset = DisentDataset(dataset=data, sampler=RlSampler(), transform=ToImgTensorF32())
-    dataloader = DataLoader(dataset=dataset, batch_size=1, shuffle=True, num_workers=0)
+    dataset = DisentDataset(dataset=data, sampler=GroundTruthPairOrigSampler(), transform=ToImgTensorF32())
+    dataloader = DataLoader(dataset=dataset, batch_size=10, shuffle=True, num_workers=0)
     batch = next(iter(dataloader))
 
     max_index = len(dataloader.dataset) - 1
@@ -204,12 +204,12 @@ def get_gif():
             img1_np = np.stack([img1_np]*3, axis=-1)
             img2_np = np.stack([img2_np]*3, axis=-1)
         
-        plt.imsave('image1.png', img1_np)
-        plt.imsave('image2.png', img2_np)  
+        # plt.imsave('image1.png', img1_np)
+        # plt.imsave('image2.png', img2_np)  
         diff = np.abs(img1_np - img2_np) / 255.0
 
 # Optionally save the difference as an image
-        Image.fromarray((diff * 255).astype(np.uint8)).save("difference.png")   
+        # Image.fromarray((diff * 255).astype(np.uint8)).save("difference.png")   
         combined = np.concatenate((img1_np, img2_np), axis=1)
         frames.append(combined)
 

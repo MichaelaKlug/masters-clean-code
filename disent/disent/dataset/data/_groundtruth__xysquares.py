@@ -301,6 +301,7 @@ class XYSingleSquareData(GroundTruthData):
         #   EACH N
         #===================================================
         num_factors=len(self.factor_sizes)
+
         new_idx=abs(idx[0])
         fx, fy = self.idx_to_pos(new_idx)
         first_pos=np.array((fx,fy))

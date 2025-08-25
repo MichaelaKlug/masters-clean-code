@@ -351,7 +351,8 @@ class DisentDataset(Dataset, LengthIter):
 
     def dataset_batch_from_indices(self, indices: Sequence[int], mode: str, collate: bool = True):
         """Get a batch of observations X from a batch of factors Y."""
-        batch = [self.dataset_get(idx, mode=mode) for idx in indices]
+        #TRYING A FIX HERE
+        batch = [self.dataset_get((idx,'first'), mode=mode) for idx in indices]
         return default_collate(batch) if collate else batch
 
     def dataset_sample_batch(
