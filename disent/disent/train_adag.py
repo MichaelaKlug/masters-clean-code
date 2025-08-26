@@ -161,7 +161,7 @@ if __name__ == '__main__':
     #     metrics = train_model(lr=0.0001, batch_size=64, z_size=96, steps=60000,beta=0.001,num_steps=i)
     #     write_metrics(metrics, lr=0.0001, batch_size=64, z_size=96, steps=60000, description=f'unlock data, rl sampler steps={i}, beta=0.001')
     metrics = train_model(lr=0.0001, batch_size=4, z_size=6, steps=57600,beta=0.01,num_steps=0)
-    write_metrics(metrics, lr=0.0001, batch_size=4, z_size=6, steps=57600, description=f'xy single square, orig sampler, beta=0.01')
+    write_metrics(metrics, lr=0.0001, batch_size=4, z_size=6, steps=57600, description=f'xy single square, orig sampler, mimic orig data beta=0.01')
     # metrics = train_model(lr=0.0001, batch_size=64, z_size=20, steps=60000,beta=0.001,num_steps=0)
     # write_metrics(metrics, lr=0.0001, batch_size=64, z_size=20, steps=60000, description=f'unlock data, orig sampler, beta=0.001')
 

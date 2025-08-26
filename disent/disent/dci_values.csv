@@ -1,3 +1,6 @@
 inf train,inf test,disentanglment,completenes,Learning rate,Batch size,Latent size,Other,Max steps,Run description
 1.0,1.0,0.7888811175520614,0.43019937823693544,0.0001,4,6, ,57600,"xy single square, orig sampler, orig data, beta=0.01"
 1.0,1.0,0.7060858389515314,0.34567177595239906,0.0001,4,6, ,57600,"xy single square, orig sampler, beta=0.01"
+1.0,1.0,0.5516845889018793,0.27864483775323495,0.0001,4,6, ,57600,"xy single square, orig sampler, beta=0.01"
+1.0,1.0,0.6853306407148018,0.28869311280561993,0.0001,4,6, ,57600,"xy single square, orig sampler, beta=0.01"
+1.0,1.0,0.8028328227377193,0.3602445743595897,0.0001,4,6, ,57600,"xy single square, orig sampler, orig data, beta=0.01"
