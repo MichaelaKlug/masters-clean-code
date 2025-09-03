@@ -279,8 +279,9 @@ class XYSingleSquareDataOrig(GroundTruthData):
 
     def _get_observation(self, idx):
         # get factors == grid position/index
-        if isinstance(idx, tuple):
-            idx=idx[0]
+        # if isinstance(idx, tuple):
+        #     idx=idx[0]
+        idx=idx[0]
         fx, fy = self.idx_to_pos(idx)
         self.accum[fx, fy] += 1
         offset, space, size = self._offset, self._spacing, self._square_size

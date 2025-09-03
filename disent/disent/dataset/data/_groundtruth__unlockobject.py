@@ -97,12 +97,14 @@ class UnlockData(GroundTruthData):
 
     name = "unlock_object"
 
-    factor_names = ("agent_x", "agent_y", "direction", "door_y", "key_x", "key_y")
+    # factor_names = ("agent_x", "agent_y", "direction", "door_y", "key_x", "key_y")
+    factor_names = ("agent_x", "agent_y", "direction")
 
     @property
     def factor_sizes(self) -> Tuple[int, ...]:
         #agent_x, agent_y, agent_dir, 
-        return (self._agent_xs,self._agent_ys,self._agent_dirs,self._door_ys,self._key_xs,self._key_ys)
+        # return (self._agent_xs,self._agent_ys,self._agent_dirs,self._door_ys,self._key_xs,self._key_ys)
+        return (self._agent_xs,self._agent_ys,self._agent_dirs)
 
     @property
     def img_shape(self) -> Tuple[int, ...]:
@@ -134,7 +136,9 @@ class UnlockData(GroundTruthData):
         self._key_ys= key_ys
 
         file_dir = os.path.dirname(__file__)
-        file_path = os.path.join(file_dir, "image_dict.pkl")
+        # file_path = os.path.join(file_dir, "image_dict.pkl")
+        # file_path = os.path.join(file_dir, "image_dict_overlapping.pkl")
+        file_path=os.path.join(file_dir, "only_agent_obs.pkl")
         print(file_path)
         with open(file_path, "rb") as f:
             image_store = pickle.load(f)

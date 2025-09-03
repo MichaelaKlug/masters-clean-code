@@ -170,8 +170,9 @@ def test_model():
 
 def get_gif():
     # Setup
-    data = XYSingleSquareData(grid_spacing=4,n=0)
-    #data=RlUnlockData(n=1)
+    # data = XYSingleSquareData(grid_spacing=4,n=0)
+    data=RlUnlockData(n=60)#
+    data=UnlockData()
     dataset = DisentDataset(dataset=data, sampler=GroundTruthPairOrigSampler(), transform=ToImgTensorF32())
     dataloader = DataLoader(dataset=dataset, batch_size=10, shuffle=True, num_workers=0)
     batch = next(iter(dataloader))
@@ -214,12 +215,12 @@ def get_gif():
         frames.append(combined)
 
         #Save PNG with correct mode
-        # if combined.shape[2] == 1 or combined.ndim == 2:
-        #     # Grayscale
-        #     Image.fromarray(combined.squeeze(), mode='L').save(f'output_image_{i}.png')
-        # else:
-        #     # RGB
-        #     Image.fromarray(combined, mode='RGB').save(f'output_image_{i}.png')
+        if combined.shape[2] == 1 or combined.ndim == 2:
+            # Grayscale
+            Image.fromarray(combined.squeeze(), mode='L').save(f'output_image_{i}.png')
+        else:
+            # RGB
+            Image.fromarray(combined, mode='RGB').save(f'output_image_{i}.png')
       
     # plt.figure()
     # plt.imshow(data.accum_start, cmap='hot')#, vmin=np.min(data.accum_start), vmax=np.max(data.accum_start))

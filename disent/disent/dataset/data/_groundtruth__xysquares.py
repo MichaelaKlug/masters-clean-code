@@ -301,44 +301,44 @@ class XYSingleSquareData(GroundTruthData):
         #   EACH N
         #===================================================
         num_factors=len(self.factor_sizes)
-
+        
         new_idx=abs(idx[0])
         fx, fy = self.idx_to_pos(new_idx)
         first_pos=np.array((fx,fy))
         offset, space, size = self._offset, self._spacing, self._square_size
-        # valid_traj=False
-        # if idx[0]<0 or idx[1]=='second':
-        #     while valid_traj==False:
-        #         for i in range(self.n):
-        #             # 4 possible moves: right, left, down, up
-        #             moves = [(1, 0), (-1, 0), (0, 1), (0, -1)]
-        #             move = random.choice(moves)
+        valid_traj=False
+        if idx[0]<0 or idx[1]=='second':
+            while valid_traj==False:
+                for i in range(self.n):
+                    # 4 possible moves: right, left, down, up
+                    moves = [(1, 0), (-1, 0), (0, 1), (0, -1)]
+                    move = random.choice(moves)
 
-        #             # Apply wrapping using modulo over factor size
-        #             fx = (fx + move[0]) % self.factor_sizes[0]
-        #             fy = (fy + move[1]) % self.factor_sizes[1]
-        #             # possible_placements=[]
-        #             # for move in moves:
-        #             #     x, y = offset + space * (fx+move[0]), offset + space * (fy+move[1])
-        #             #     if 0 <= x < self._width and 0 <= y < self._width:
-        #             #         #print('entering here at ', move)
-        #             #         possible_placements.append(move)
-        #             # choice = random.choice(possible_placements)
-        #             # fx+=choice[0]
-        #             # fy+=choice[1]
-        #             #print('new fx and fy are ', fx,fy,'\n')
+                    # Apply wrapping using modulo over factor size
+                    fx = (fx + move[0]) % self.factor_sizes[0]
+                    fy = (fy + move[1]) % self.factor_sizes[1]
+                    # possible_placements=[]
+                    # for move in moves:
+                    #     x, y = offset + space * (fx+move[0]), offset + space * (fy+move[1])
+                    #     if 0 <= x < self._width and 0 <= y < self._width:
+                    #         #print('entering here at ', move)
+                    #         possible_placements.append(move)
+                    # choice = random.choice(possible_placements)
+                    # fx+=choice[0]
+                    # fy+=choice[1]
+                    #print('new fx and fy are ', fx,fy,'\n')
                 
-        #         self.end_points.append((fx, fy))
-        #         second_pos=np.array((fx,fy))
-        #         if self.hamming_delta(first_pos, second_pos) <= (num_factors - 1):
-        #             self.accum_pair[fx, fy] += 1
-        #             valid_traj=True
-        # elif idx[0]>=0 or idx[1]=='first':
-        #     self.indices.append(idx[0])
-        #     self.accum_start[fx, fy] += 1
-        #     self.start_points.append((fx, fy))
+                self.end_points.append((fx, fy))
+                second_pos=np.array((fx,fy))
+                if self.hamming_delta(first_pos, second_pos) <= (num_factors - 1):
+                    self.accum_pair[fx, fy] += 1
+                    valid_traj=True
+        elif idx[0]>=0 or idx[1]=='first':
+            self.indices.append(idx[0])
+            self.accum_start[fx, fy] += 1
+            self.start_points.append((fx, fy))
 
-        #print('x and y are : ',x,y)
+        #print('x and y are d: ',x,y)
         # draw square onto image
         obs = np.zeros(self.img_shape, dtype="uint8")
         x, y = offset + space * fx, offset + space * fy

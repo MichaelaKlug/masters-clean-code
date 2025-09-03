@@ -116,7 +116,8 @@ class SimpleEnv(MiniGridEnv):
 class RlUnlockData(GroundTruthData):
 
     name = "rl_unlock_object"
-    factor_names = ("agent_x", "agent_y", "direction", "door_y", "key_x", "key_y")
+    # factor_names = ("agent_x", "agent_y", "direction", "door_y", "key_x", "key_y")
+    factor_names = ("agent_x", "agent_y", "direction")
 
     #=========================================================
     #   CHECK WHAT THIS AFFECTS
@@ -124,7 +125,8 @@ class RlUnlockData(GroundTruthData):
     @property
     def factor_sizes(self) -> Tuple[int, ...]:
         #agent_x, agent_y, agent_dir, 
-        return (4,4,4,4,4,4)
+        # return (4,4,4,4,4,4)
+        return (4,4,4)
 
     @property
     def img_shape(self) -> Tuple[int, ...]:
@@ -143,7 +145,8 @@ class RlUnlockData(GroundTruthData):
         self.n=n
         self._width = 64
         file_dir = os.path.dirname(__file__)
-        file_path = os.path.join(file_dir, "image_dict_overlapping.pkl")
+        # file_path = os.path.join(file_dir, "image_dict_overlapping.pkl")
+        file_path=os.path.join(file_dir, "only_agent_obs.pkl")
         self.accum= np.zeros((64, 64), dtype=np.float32)
         print(file_path)
         with open(file_path, "rb") as f:
@@ -178,25 +181,25 @@ class RlUnlockData(GroundTruthData):
         if idx < 0:
             while valid_traj==False:
 
-                door = modified_lst[3]
-                keyx = modified_lst[4]
-                keyy = modified_lst[5]
+                # door = modified_lst[3]
+                # keyx = modified_lst[4]
+                # keyy = modified_lst[5]
                 for i in range(self.n):
                     agent_x, agent_y, agent_dir = modified_lst[0], modified_lst[1], modified_lst[2]
                     new_x, new_y, new_dir = agent_x, agent_y, agent_dir
                     
                     possible_moves=[0,1]
                     if agent_dir == 0:
-                        if (agent_x+1)<=4 and not((agent_x+1)==keyx and agent_y==keyy):
+                        if (agent_x+1)<=4:# and not((agent_x+1)==keyx and agent_y==keyy):
                             possible_moves.append((2,agent_x+1,agent_y))
                     elif agent_dir == 1:
-                        if (agent_y+1)<=4 and not((agent_y+1)==keyy and agent_x==keyx):
+                        if (agent_y+1)<=4:# and not((agent_y+1)==keyy and agent_x==keyx):
                             possible_moves.append((2,agent_x,agent_y+1))
                     elif agent_dir == 2:
-                        if (agent_x-1)>0 and not((agent_x-1)==keyx and agent_y==keyy):
+                        if (agent_x-1)>0 :#and not((agent_x-1)==keyx and agent_y==keyy):
                             possible_moves.append((2,agent_x-1,agent_y))
                     elif agent_dir == 3:
-                        if (agent_y-1)>0 and not((agent_y-1)==keyy and agent_x==keyx):
+                        if (agent_y-1)>0:#and not((agent_y-1)==keyy and agent_x==keyx):
                             possible_moves.append((2,agent_x,agent_y-1))
                     # Randomly choose action: 0 = left turn, 1 = right turn, 2 = move forward
                     choice = random.choice(possible_moves)
@@ -208,7 +211,8 @@ class RlUnlockData(GroundTruthData):
                     else:
                         new_x=choice[1]
                         new_y=choice[2]
-                    modified_lst=(new_x,new_y,new_dir,door,keyx,keyy)
+                    # modified_lst=(new_x,new_y,new_dir,door,keyx,keyy)
+                    modified_lst = (new_x,new_y,new_dir)
                 if self.hamming_delta(first_sample, modified_lst) <= num_factors - 1:
                     valid_traj=True
 

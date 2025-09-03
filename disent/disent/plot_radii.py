@@ -60,7 +60,7 @@ from disent.dataset.data import XYSquaresData
 def test_model():
     #data=XYSquaresData(grid_spacing=3)
     # data = XYSingleSquareData(grid_spacing=4,n=1)
-    data=XYSingleSquareData(grid_spacing=4)
+    data=XYSingleSquareData(grid_spacing=4,n=80)
     index=(112,'first')
     sampler = GroundTruthPairOrigSampler()
     # sampler=RlSampler()
@@ -102,7 +102,7 @@ def test_model_origdata():
 def test_model_rl():
     #data=XYSquaresData(grid_spacing=3)
     # data = XYSingleSquareData(grid_spacing=4,n=1)
-    data=XYSingleSquareData(grid_spacing=4,n=60)
+    data=XYSingleSquareData(grid_spacing=4,n=100)
     index=(112,'first')
     sampler=RlSampler()
     sampler.init(data)
@@ -114,7 +114,7 @@ def test_model_rl():
     plt.figure()
     plt.imshow(data.accum_pair, cmap='hot')
     plt.colorbar()
-    plt.savefig(f'radius_plots/rl_sampler_center_n80_fixedsampler.png')
+    plt.savefig(f'radius_plots/rl_sampler_center_n100_fixedsampler.png')
     plt.close()
   
 

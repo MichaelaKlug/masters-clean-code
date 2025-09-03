@@ -54,7 +54,7 @@ import torch.distributed as dist
 def is_main_process():
     return not dist.is_initialized() or dist.get_rank() == 0
 
-def train_model(lr, batch_size, z_size, steps,beta, num_steps=0):
+def train_model(lr, batch_size, z_size, steps,beta, sampler,data,num_steps=0,):
     print(f"Training with lr={lr}, batch_size={batch_size}, z_size={z_size}, steps={steps}")
     start_time = time.time()
 
@@ -63,10 +63,12 @@ def train_model(lr, batch_size, z_size, steps,beta, num_steps=0):
     #===============================================
     # data=XYObjectData()
     # data=UnlockData()
-    # data=XYSingleSquareDataOrig(grid_spacing=4)
-    data=XYSingleSquareData(grid_spacing=4)
-    #data=RlUnlockData(n=num_steps)
-    dataset = DisentDataset(dataset=data, sampler=GroundTruthPairOrigSampler(), transform=ToImgTensorF32())
+    # data=XYSingleSquareData(grid_spacing=4,n=num_steps)
+    # data=XYSingleSquareData(grid_spacing=4)
+    
+    data=data
+    print('data is ', data.name)
+    dataset = DisentDataset(dataset=data, sampler=sampler, transform=ToImgTensorF32())
     dataloader = DataLoader(dataset=dataset, batch_size=batch_size, shuffle=True, num_workers=0)
 
     #===============================================
@@ -85,11 +87,11 @@ def train_model(lr, batch_size, z_size, steps,beta, num_steps=0):
     # dataloader = DataLoader(dataset=dataset, batch_size=batch_size, shuffle=True, num_workers=0)
 
 
-    # data_x_shape=(3,64,64)
+    data_x_shape=(3,64,64)
     #data_x_shape=(1,32,32)
     model = AutoEncoder(
-        encoder=EncoderConv64(x_shape=data.x_shape, z_size=z_size, z_multiplier=2),
-        decoder=DecoderConv64(x_shape=data.x_shape, z_size=z_size),
+        encoder=EncoderConv64(x_shape=data_x_shape, z_size=z_size, z_multiplier=2),
+        decoder=DecoderConv64(x_shape=data_x_shape, z_size=z_size),
     )
     
     framework = AdaVae(
@@ -106,13 +108,12 @@ def train_model(lr, batch_size, z_size, steps,beta, num_steps=0):
     
     trainer = L.Trainer(max_steps=steps, logger=False,enable_checkpointing=False)
     trainer.fit(framework, dataloader)
-
-    # trainer.save_checkpoint("trained_adag_0807.ckpt")
     
-   
-    
-    # # Save model
-    # model_path = f"model_lr{lr}_bs{batch_size}_z{z_size}_steps{steps}_beta{beta}_1808.pth"
+    # if sampler==GroundTruthPairOrigSampler():
+    print('sampler is ', sampler)
+    model_path = f"model_lr{lr}_bs{batch_size}_z{z_size}_steps{steps}_beta{beta}_origsampler_2708.pth"
+    trainer.save_checkpoint(model_path)
+       
     # torch.save(model.state_dict(), model_path)
     # trainer.save_checkpoint(model_path)
     end_time = time.time()  # ⏱️ End timing
@@ -155,17 +156,38 @@ def write_metrics(metric,lr,batch_size,z_size,steps,description):
 
 
 if __name__ == '__main__':
-    
-    # steps=[0,1,20,40,60,80,100,110]
-    # for i in steps:
-    #     metrics = train_model(lr=0.0001, batch_size=64, z_size=96, steps=60000,beta=0.001,num_steps=i)
-    #     write_metrics(metrics, lr=0.0001, batch_size=64, z_size=96, steps=60000, description=f'unlock data, rl sampler steps={i}, beta=0.001')
-    metrics = train_model(lr=0.0001, batch_size=4, z_size=6, steps=57600,beta=0.01,num_steps=0)
-    write_metrics(metrics, lr=0.0001, batch_size=4, z_size=6, steps=57600, description=f'xy single square, orig sampler, mimic orig data beta=0.01')
+    batch_size = 4
+    lr = 0.0001
+    z_size = 20
+    max_steps = 60000
+    beta = 0.00316 
+
+    steps=[0,1,20,40,60,80,100,110]
+    for i in steps:
+        data=RlUnlockData(n=i)
+        metrics = train_model(lr=lr, batch_size=batch_size, z_size=z_size, steps=max_steps,beta=beta,sampler=RlSampler(),data=data,num_steps=i)
+        write_metrics(metrics, lr=lr, batch_size=batch_size, z_size=z_size, steps=max_steps, description=f'unlock data only agent, rl sampler, steps={i}, beta={beta}')
+    data=UnlockData()
+    metrics = train_model(lr=lr, batch_size=batch_size, z_size=z_size, steps=max_steps,beta=beta,sampler=GroundTruthPairOrigSampler(),data=data,num_steps=0)
+    write_metrics(metrics, lr=lr, batch_size=batch_size, z_size=z_size, steps=max_steps, description=f'unlock data only agent, orig sampler, orig data beta={beta}')
     # metrics = train_model(lr=0.0001, batch_size=64, z_size=20, steps=60000,beta=0.001,num_steps=0)
     # write_metrics(metrics, lr=0.0001, batch_size=64, z_size=20, steps=60000, description=f'unlock data, orig sampler, beta=0.001')
 
     
+
+"""
+number: 54
+value: 0.8173209286995717
+datetime_start: 2025-08-10 10:35:13.209652
+datetime_complete: 2025-08-10 11:37:48.441556
+duration: 0 days 01:02:35.231904
+params_batch_size: 153
+params_beta: 0.001
+params_latent_size: 90
+state: COMPLETE
+
+"""
+
 
 """
 DV3 2D latent space as image
@@ -194,16 +216,5 @@ params_latent_size: 99
 state: COMPLETE
 """
 
-"""
-number: 54
-value: 0.8173209286995717
-datetime_start: 2025-08-10 10:35:13.209652
-datetime_complete: 2025-08-10 11:37:48.441556
-duration: 0 days 01:02:35.231904
-params_batch_size: 153
-params_beta: 0.001
-params_latent_size: 90
-state: COMPLETE
 
-"""
 
