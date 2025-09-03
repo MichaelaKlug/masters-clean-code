@@ -227,7 +227,10 @@ class StateSpace(LengthIter):
             factors = np.empty((num_samples, len(f_sizes)), dtype=int)
             for i in range(num_samples):
                 factor=np.random.randint(0, f_sizes)
-                while factor[0]==factor[4] and factor[1]==factor[5]:
+                while (factor[0]==factor[4] and factor[1]==factor[5]) \
+                    or ((factor[4] == 0) ^ (factor[5] == 0))\
+                    or (factor[4]!=0 and factor[5]!=0 and factor[6]==0)\
+                    or (factor[4]==0 and factor[5]==0 and factor[6]==1):
                     factor=np.random.randint(0, f_sizes)
                 # factors[i]  = [x + 1 if i != 2 else x for i, x in enumerate(factor)]
                 factors[i]=factor

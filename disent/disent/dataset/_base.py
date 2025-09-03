@@ -399,10 +399,10 @@ class DisentDataset(Dataset, LengthIter):
     @groundtruth_only
     def dataset_sample_batch_with_factors(self, num_samples: int, mode: str, collate: bool = True):
         """Sample a batch of observations X and factors Y."""
-        # if "unlock" in self._dataset.name:
-        #     factors = self.gt_data.sample_unlock_factors(num_samples)
-        # else:
-        factors = self.gt_data.sample_factors(num_samples)
+        if "unlock" in self._dataset.name:
+            factors = self.gt_data.sample_unlock_factors(num_samples)
+        else:
+            factors = self.gt_data.sample_factors(num_samples)
         batch = self.dataset_batch_from_factors(factors, mode=mode, collate=collate)
         return batch, (default_collate(factors) if collate else factors)
 

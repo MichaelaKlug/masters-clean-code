@@ -98,13 +98,15 @@ class UnlockData(GroundTruthData):
     name = "unlock_object"
 
     # factor_names = ("agent_x", "agent_y", "direction", "door_y", "key_x", "key_y")
-    factor_names = ("agent_x", "agent_y", "direction")
+    # factor_names = ("agent_x", "agent_y", "direction")
+    factor_names = ("agent_x", "agent_y", "direction", "door_y", "key_x", "key_y", "key_present", "door_open")
 
     @property
     def factor_sizes(self) -> Tuple[int, ...]:
         #agent_x, agent_y, agent_dir, 
         # return (self._agent_xs,self._agent_ys,self._agent_dirs,self._door_ys,self._key_xs,self._key_ys)
-        return (self._agent_xs,self._agent_ys,self._agent_dirs)
+        # return (self._agent_xs,self._agent_ys,self._agent_dirs)
+        return (self._agent_xs,self._agent_ys,self._agent_dirs,self._door_ys,self._key_xs,self._key_ys,self._key_present,self._door_open)
 
     @property
     def img_shape(self) -> Tuple[int, ...]:
@@ -117,8 +119,10 @@ class UnlockData(GroundTruthData):
         agent_ys: int = 4,
         agent_dirs: int = 4,
         door_ys: int = 4,
-        key_xs: int = 4,
-        key_ys: int = 4,
+        key_xs: int = 5,
+        key_ys: int = 5,
+        key_present: int = 2,
+        door_open: int = 2,
         transform=None,
         obs_dictionary=None
         
@@ -134,11 +138,13 @@ class UnlockData(GroundTruthData):
         self._door_ys= door_ys
         self._key_xs = key_xs
         self._key_ys= key_ys
+        self._key_present= key_present
+        self._door_open= door_open
 
         file_dir = os.path.dirname(__file__)
         # file_path = os.path.join(file_dir, "image_dict.pkl")
         # file_path = os.path.join(file_dir, "image_dict_overlapping.pkl")
-        file_path=os.path.join(file_dir, "only_agent_obs.pkl")
+        file_path=os.path.join(file_dir, "full_feature_set.pkl")
         print(file_path)
         with open(file_path, "rb") as f:
             image_store = pickle.load(f)
@@ -153,7 +159,13 @@ class UnlockData(GroundTruthData):
      
         # x, y, s, c = self.idx_to_pos(idx) #shown from xy_object code
         orig_list=self.idx_to_pos(idx)
-        modified_lst = [x + 1 if i != 2 else x for i, x in enumerate(orig_list)]
+        # modified_lst = [x + 1 if i != 2 else x for i, x in enumerate(orig_list)]
+        modified_lst = [x + 1 if i not in {2, 4, 5, 6, 7} else x for i, x in enumerate(orig_list)]
+        # key_present = not (modified_lst[4] == 0 and modified_lst[5] == 0)
+        # modified_lst.insert(-1, int(key_present))  # Insert key_present before door_open
+
+
+
         factors=tuple(modified_lst)
         obs=self._obs_dictionary[factors]
         

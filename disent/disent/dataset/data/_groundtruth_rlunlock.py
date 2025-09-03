@@ -117,7 +117,7 @@ class RlUnlockData(GroundTruthData):
 
     name = "rl_unlock_object"
     # factor_names = ("agent_x", "agent_y", "direction", "door_y", "key_x", "key_y")
-    factor_names = ("agent_x", "agent_y", "direction")
+    factor_names = ("agent_x", "agent_y", "direction", "door_y", "key_x", "key_y", "key_present", "door_open")
 
     #=========================================================
     #   CHECK WHAT THIS AFFECTS
@@ -126,7 +126,8 @@ class RlUnlockData(GroundTruthData):
     def factor_sizes(self) -> Tuple[int, ...]:
         #agent_x, agent_y, agent_dir, 
         # return (4,4,4,4,4,4)
-        return (4,4,4)
+        # return (4,4,4)
+        return (4,4,4,4,4,4,2,2)
 
     @property
     def img_shape(self) -> Tuple[int, ...]:
@@ -146,7 +147,7 @@ class RlUnlockData(GroundTruthData):
         self._width = 64
         file_dir = os.path.dirname(__file__)
         # file_path = os.path.join(file_dir, "image_dict_overlapping.pkl")
-        file_path=os.path.join(file_dir, "only_agent_obs.pkl")
+        file_path=os.path.join(file_dir, "full_feature_set.pkl")
         self.accum= np.zeros((64, 64), dtype=np.float32)
         print(file_path)
         with open(file_path, "rb") as f:
@@ -175,31 +176,35 @@ class RlUnlockData(GroundTruthData):
         if isinstance(idx,tuple):
             idx=idx[0]
         orig_list=self.idx_to_pos(abs(idx))
-        modified_lst = [x + 1 if i != 2 else x for i, x in enumerate(orig_list)]
+        # modified_lst = [x + 1 if i != 2 else x for i, x in enumerate(orig_list)]
+        modified_lst = [x + 1 if i not in {2, 4, 5, 6, 7} else x for i, x in enumerate(orig_list)]
+        print('factors are 1 ', modified_lst)
         first_sample=modified_lst
         valid_traj=False #valid trajectory means that the final state mudt differ to original state by AT MOST d-1 factors (i.e. not all factors changed)
         if idx < 0:
             while valid_traj==False:
 
-                # door = modified_lst[3]
-                # keyx = modified_lst[4]
-                # keyy = modified_lst[5]
+                door = modified_lst[3]
+                keyx = modified_lst[4]
+                keyy = modified_lst[5]
+                key_present=modified_lst[6]
+                door_open=modified_lst[7]
                 for i in range(self.n):
                     agent_x, agent_y, agent_dir = modified_lst[0], modified_lst[1], modified_lst[2]
                     new_x, new_y, new_dir = agent_x, agent_y, agent_dir
                     
                     possible_moves=[0,1]
                     if agent_dir == 0:
-                        if (agent_x+1)<=4:# and not((agent_x+1)==keyx and agent_y==keyy):
+                        if (agent_x+1)<=4 and not((agent_x+1)==keyx and agent_y==keyy):
                             possible_moves.append((2,agent_x+1,agent_y))
                     elif agent_dir == 1:
-                        if (agent_y+1)<=4:# and not((agent_y+1)==keyy and agent_x==keyx):
+                        if (agent_y+1)<=4 and not((agent_y+1)==keyy and agent_x==keyx):
                             possible_moves.append((2,agent_x,agent_y+1))
                     elif agent_dir == 2:
-                        if (agent_x-1)>0 :#and not((agent_x-1)==keyx and agent_y==keyy):
+                        if (agent_x-1)>0 and not((agent_x-1)==keyx and agent_y==keyy):
                             possible_moves.append((2,agent_x-1,agent_y))
                     elif agent_dir == 3:
-                        if (agent_y-1)>0:#and not((agent_y-1)==keyy and agent_x==keyx):
+                        if (agent_y-1)>0 and not((agent_y-1)==keyy and agent_x==keyx):
                             possible_moves.append((2,agent_x,agent_y-1))
                     # Randomly choose action: 0 = left turn, 1 = right turn, 2 = move forward
                     choice = random.choice(possible_moves)
@@ -212,12 +217,13 @@ class RlUnlockData(GroundTruthData):
                         new_x=choice[1]
                         new_y=choice[2]
                     # modified_lst=(new_x,new_y,new_dir,door,keyx,keyy)
-                    modified_lst = (new_x,new_y,new_dir)
+                    # modified_lst = (new_x,new_y,new_dir,door,keyx,keyy,key_present,door_open)
+                    modified_lst = (new_x,new_y,new_dir,door,keyx,keyy,key_present,door_open)
                 if self.hamming_delta(first_sample, modified_lst) <= num_factors - 1:
                     valid_traj=True
 
         #print('next step ', modified_lst,'\n')
-        
+        print('factors are ', modified_lst)
         factors=tuple(modified_lst)
         obs=self._obs_dictionary[factors]
         returned_state=obs

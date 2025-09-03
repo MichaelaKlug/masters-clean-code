@@ -141,7 +141,7 @@ class GroundTruthPairOrigSamplerUnlock(BaseDisentSampler):
         """
         # print('index is ', idx)
         # randomly sample the first observation -- In our case we just use the idx
-        indices=[0,1,2,3]
+        # indices=[0,1,2,3]
         sampled_factors = self._state_space.idx_to_pos(idx)
         
 
@@ -152,7 +152,12 @@ class GroundTruthPairOrigSamplerUnlock(BaseDisentSampler):
         """
 
 
-        while sampled_factors[0]==sampled_factors[4] and sampled_factors[1]==sampled_factors[5]:
+        while ((sampled_factors[0]+1)==sampled_factors[4] and (sampled_factors[1]+1)==sampled_factors[5]) \
+            or ((sampled_factors[4] == 0) ^ (sampled_factors[5] == 0))\
+            or (sampled_factors[4]!=0 and sampled_factors[5]!=0 and sampled_factors[6]==0)\
+            or (sampled_factors[4]==0 and sampled_factors[5]==0 and sampled_factors[6]==1):
+
+
             new_idx = random.randint(0, 4095)
             sampled_factors = self._state_space.idx_to_pos(new_idx)
 
@@ -160,7 +165,10 @@ class GroundTruthPairOrigSamplerUnlock(BaseDisentSampler):
         # sample the next observation with k differing factors
         next_factors, k = _sample_k_differing(sampled_factors, self._state_space, k=self.p_k)
 
-        while next_factors[0]==next_factors[4] and next_factors[1]==next_factors[5]:
+        while (next_factors[0]==next_factors[4] and next_factors[1]==next_factors[5]) \
+            or ((next_factors[4] == 0) ^ (next_factors[5] == 0))\
+            or (next_factors[4]!=0 and next_factors[5]!=0 and next_factors[6]==0)\
+            or (next_factors[4]==0 and next_factors[5]==0 and next_factors[6]==1):
             next_factors, k = _sample_k_differing(sampled_factors, self._state_space, k=self.p_k)
           
         # return the samples
@@ -205,12 +213,16 @@ class RlSampler(BaseDisentSampler):
         from the sampled and next factors.
 
         """
-        # print('sampled factors are ', sampled_factors)
+        print('sampled factors are ', sampled_factors)
         new_idx=idx
-        # if "unlock" in self._dataset.name:
-        #     while sampled_factors[0]==sampled_factors[4] and sampled_factors[1]==sampled_factors[5]:
-        #         new_idx = random.randint(0, 4095)
-        #         sampled_factors = self._state_space.idx_to_pos(new_idx)
+        if "unlock" in self._dataset.name:
+            while ((sampled_factors[0]+1)==sampled_factors[4] and (sampled_factors[1]+1)==sampled_factors[5]) \
+                or ((sampled_factors[4] == 0) ^ (sampled_factors[5] == 0))\
+                or (sampled_factors[4]!=0 and sampled_factors[5]!=0 and sampled_factors[6]==0)\
+                or (sampled_factors[4]==0 and sampled_factors[5]==0 and sampled_factors[6]==1):
+                new_idx = random.randint(0, 4095)
+                sampled_factors = self._state_space.idx_to_pos(new_idx)
+                print('sampled factors 2 ', sampled_factors)
 
         # return the samples
         # return (new_idx,-1*new_idx)

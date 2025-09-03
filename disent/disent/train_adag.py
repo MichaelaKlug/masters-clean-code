@@ -166,10 +166,10 @@ if __name__ == '__main__':
     for i in steps:
         data=RlUnlockData(n=i)
         metrics = train_model(lr=lr, batch_size=batch_size, z_size=z_size, steps=max_steps,beta=beta,sampler=RlSampler(),data=data,num_steps=i)
-        write_metrics(metrics, lr=lr, batch_size=batch_size, z_size=z_size, steps=max_steps, description=f'unlock data only agent, rl sampler, steps={i}, beta={beta}')
+        write_metrics(metrics, lr=lr, batch_size=batch_size, z_size=z_size, steps=max_steps, description=f'unlock data 8 factors, rl sampler, steps={i}, beta={beta}')
     data=UnlockData()
-    metrics = train_model(lr=lr, batch_size=batch_size, z_size=z_size, steps=max_steps,beta=beta,sampler=GroundTruthPairOrigSampler(),data=data,num_steps=0)
-    write_metrics(metrics, lr=lr, batch_size=batch_size, z_size=z_size, steps=max_steps, description=f'unlock data only agent, orig sampler, orig data beta={beta}')
+    metrics = train_model(lr=lr, batch_size=batch_size, z_size=z_size, steps=max_steps,beta=beta,sampler=GroundTruthPairOrigSamplerUnlock(),data=data,num_steps=0)
+    write_metrics(metrics, lr=lr, batch_size=batch_size, z_size=z_size, steps=max_steps, description=f'unlock data 8 factors, orig sampler, orig data beta={beta}')
     # metrics = train_model(lr=0.0001, batch_size=64, z_size=20, steps=60000,beta=0.001,num_steps=0)
     # write_metrics(metrics, lr=0.0001, batch_size=64, z_size=20, steps=60000, description=f'unlock data, orig sampler, beta=0.001')
 

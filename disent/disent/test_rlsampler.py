@@ -171,9 +171,9 @@ def test_model():
 def get_gif():
     # Setup
     # data = XYSingleSquareData(grid_spacing=4,n=0)
-    data=RlUnlockData(n=60)#
-    data=UnlockData()
-    dataset = DisentDataset(dataset=data, sampler=GroundTruthPairOrigSampler(), transform=ToImgTensorF32())
+    data=RlUnlockData(n=3)
+    # data=UnlockData()
+    dataset = DisentDataset(dataset=data, sampler=RlSampler(), transform=ToImgTensorF32())
     dataloader = DataLoader(dataset=dataset, batch_size=10, shuffle=True, num_workers=0)
     batch = next(iter(dataloader))
 
