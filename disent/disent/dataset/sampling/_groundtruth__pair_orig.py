@@ -213,7 +213,6 @@ class RlSampler(BaseDisentSampler):
         from the sampled and next factors.
 
         """
-        print('sampled factors are ', sampled_factors)
         new_idx=idx
         if "unlock" in self._dataset.name:
             while ((sampled_factors[0]+1)==sampled_factors[4] and (sampled_factors[1]+1)==sampled_factors[5]) \
@@ -222,10 +221,48 @@ class RlSampler(BaseDisentSampler):
                 or (sampled_factors[4]==0 and sampled_factors[5]==0 and sampled_factors[6]==1):
                 new_idx = random.randint(0, 4095)
                 sampled_factors = self._state_space.idx_to_pos(new_idx)
-                print('sampled factors 2 ', sampled_factors)
 
         # return the samples
         # return (new_idx,-1*new_idx)
+        return (new_idx,'first'),(-1*new_idx,'second')
+
+class RlSamplerFullSet(BaseDisentSampler):
+    def uninit_copy(self) -> "RlSamplerFullSet":
+        return RlSamplerFullSet(p_k=self.p_k)
+    
+
+    def __init__(
+        self,
+    ):
+        """
+        Sampler that emulates choosing factors like:
+        https://github.com/google-research/disentanglement_lib/blob/master/disentanglement_lib/methods/weak/train_weak_lib.py
+        """
+        super().__init__(num_samples=2)
+        # dataset variable
+        self._state_space: Optional[StateSpace] = None
+        
+
+    def _init(self, dataset):
+        assert isinstance(
+            dataset, GroundTruthData
+        ), f"dataset must be an instance of {repr(GroundTruthData.__class__.__name__)}, got: {repr(dataset)}"
+        self._state_space = dataset.state_space_copy()
+        self._dataset=dataset
+
+    # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - #
+    # CORE                                                                  #
+    # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - #
+
+    def _sample_idx(self, idx):
+        # new_idx = random.randint(0, 8192)
+
+        #trying this to randomise based on idx but could be wrong
+        new_idx=idx % 8192
+
+        # return the samples
+        # return (new_idx,-1*new_idx)
+        # new_idx=idx
         return (new_idx,'first'),(-1*new_idx,'second')
 
 

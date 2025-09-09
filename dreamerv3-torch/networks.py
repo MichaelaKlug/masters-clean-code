@@ -428,7 +428,12 @@ class RSSM(nn.Module):
         new_d1 = self.get_dist({"logit": z1_logits})
         new_ds_posterior = (new_d0, new_d1)
 
-        
+     
+       
+        with open('posteriors_adversarial.txt', "a", encoding="utf-8") as f:
+            f.write(f"posterior 0 and 1 before: {d0_posterior.base_dist.logits} {d1_posterior.base_dist.logits}\n")
+            f.write(f"posterior 0 and 1 after: {new_d0.base_dist.logits} {new_d1.base_dist.logits}\n")
+
         # [done] return new args & generate logs
         return new_ds_posterior
 

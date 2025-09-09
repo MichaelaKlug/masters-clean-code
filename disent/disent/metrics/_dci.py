@@ -128,7 +128,6 @@ def _compute_importance_gbt(x_train, y_train, x_test, y_test, boost_mode="sklear
             model = LGBMClassifier()
         else:
             raise KeyError(f"Invalid boosting mode: {boost_mode=}")
-
         model.fit(x_train.T, y_train[i, :])
         importance_matrix[:, i] = np.abs(model.feature_importances_)
         train_loss.append(np.mean(model.predict(x_train.T) == y_train[i, :]))

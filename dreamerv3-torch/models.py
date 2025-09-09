@@ -177,6 +177,13 @@ class WorldModel(nn.Module):
         #ds_posterior, ds_prior, logs_intercept_ds = self.hook_intercept_ds(ds_posterior, ds_prior)
         ds_posterior= self.dynamics.hook_intercept_ds(ds_posterior)
         zs_sampled = tuple(d.sample() for d in ds_posterior)
+        with open('zs_adversarial.txt', "a", encoding="utf-8") as f:
+            indices = zs_sampled[0].argmax(dim=0)   # collapse channel -> (H, W)
+            indices_1d_1 = indices.view(-1)
+            f.write(f"z[0]: {indices_1d_1}\n")
+            indices2 = zs_sampled[1].argmax(dim=0)   # collapse channel -> (H, W)
+            indices_1d_2 = indices2.view(-1)
+            f.write(f"z[1]: {indices_1d_2}\n")
         # sample from dists
         # we use d.sample() here because dreamer code has implemented own tricks for categorical variables
         # look in tools.py at sample method in class OneHotDist

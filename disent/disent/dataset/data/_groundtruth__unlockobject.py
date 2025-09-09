@@ -95,7 +95,8 @@ class SimpleEnv(MiniGridEnv):
 
 class UnlockData(GroundTruthData):
 
-    name = "unlock_object"
+    # name = "unlock_object"
+    name="fullset_data"
 
     # factor_names = ("agent_x", "agent_y", "direction", "door_y", "key_x", "key_y")
     # factor_names = ("agent_x", "agent_y", "direction")
@@ -156,11 +157,17 @@ class UnlockData(GroundTruthData):
         if isinstance(idx, tuple):
             # if we have a pair, we need to get the first element of the pair
             idx=idx[0]
+        if isinstance(idx,np.ndarray):
+            idx=idx[0]
      
-        # x, y, s, c = self.idx_to_pos(idx) #shown from xy_object code
+        
         orig_list=self.idx_to_pos(idx)
         # modified_lst = [x + 1 if i != 2 else x for i, x in enumerate(orig_list)]
         modified_lst = [x + 1 if i not in {2, 4, 5, 6, 7} else x for i, x in enumerate(orig_list)]
+
+        # key = list(self._obs_dictionary.keys())[abs(idx)] 
+        # modified_lst= key
+
         # key_present = not (modified_lst[4] == 0 and modified_lst[5] == 0)
         # modified_lst.insert(-1, int(key_present))  # Insert key_present before door_open
 

@@ -278,6 +278,8 @@ class DisentDataset(Dataset, LengthIter):
         if isinstance(idx, tuple):
             # if we have a pair, we need to get the first element of the pair
             idx = idx[0]
+        if isinstance(idx, np.ndarray):
+            idx=idx[0]
         # idx=idx[0]
         """
         Gets the specified datapoint, using the specified mode.
@@ -295,6 +297,7 @@ class DisentDataset(Dataset, LengthIter):
         :param mode: {'raw', 'target', 'input', 'pair'}
         :return: observation depending on mode
         """
+     
         try:
             idx = int(idx)
         except:
@@ -393,16 +396,23 @@ class DisentDataset(Dataset, LengthIter):
     @groundtruth_only
     def dataset_batch_from_factors(self, factors: np.ndarray, mode: str, collate: bool = True):
         """Get a batch of observations X from a batch of factors Y."""
-        indices = self.gt_data.pos_to_idx(factors)
+        if 'fullset' in self._dataset.name:
+            indices = np.array(factors, dtype=int)
+        else:
+            indices = self.gt_data.pos_to_idx(factors)   
         return self.dataset_batch_from_indices(indices, mode=mode, collate=collate)
+    
 
     @groundtruth_only
     def dataset_sample_batch_with_factors(self, num_samples: int, mode: str, collate: bool = True):
         """Sample a batch of observations X and factors Y."""
         if "unlock" in self._dataset.name:
             factors = self.gt_data.sample_unlock_factors(num_samples)
+        elif "fullset" in self._dataset.name:
+            factors = self.gt_data.sample_fullSet_factors(num_samples)
         else:
             factors = self.gt_data.sample_factors(num_samples)
+        
         batch = self.dataset_batch_from_factors(factors, mode=mode, collate=collate)
         return batch, (default_collate(factors) if collate else factors)
 

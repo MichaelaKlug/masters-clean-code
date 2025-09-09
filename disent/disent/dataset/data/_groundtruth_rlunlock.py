@@ -115,7 +115,8 @@ class SimpleEnv(MiniGridEnv):
 
 class RlUnlockData(GroundTruthData):
 
-    name = "rl_unlock_object"
+    # name = "rl_unlock_object"
+    name="fullset_data"
     # factor_names = ("agent_x", "agent_y", "direction", "door_y", "key_x", "key_y")
     factor_names = ("agent_x", "agent_y", "direction", "door_y", "key_x", "key_y", "key_present", "door_open")
 
@@ -127,7 +128,7 @@ class RlUnlockData(GroundTruthData):
         #agent_x, agent_y, agent_dir, 
         # return (4,4,4,4,4,4)
         # return (4,4,4)
-        return (4,4,4,4,4,4,2,2)
+        return (4,4,4,4,5,5,2,2)
 
     @property
     def img_shape(self) -> Tuple[int, ...]:
@@ -153,6 +154,9 @@ class RlUnlockData(GroundTruthData):
         with open(file_path, "rb") as f:
             image_store = pickle.load(f)
         self._obs_dictionary= image_store
+        self._obs_keys = list(self._obs_dictionary.keys())
+        
+
         super().__init__(transform=transform)
     def hamming_delta(self,f0, f1):
         f0, f1 = np.asarray(f0), np.asarray(f1)
@@ -175,21 +179,29 @@ class RlUnlockData(GroundTruthData):
         num_factors=len(self.factor_sizes)
         if isinstance(idx,tuple):
             idx=idx[0]
-        orig_list=self.idx_to_pos(abs(idx))
+        if isinstance(idx,np.ndarray):
+            idx=idx[0]
+      
+        # orig_list=self.idx_to_pos(abs(idx))
+       
         # modified_lst = [x + 1 if i != 2 else x for i, x in enumerate(orig_list)]
-        modified_lst = [x + 1 if i not in {2, 4, 5, 6, 7} else x for i, x in enumerate(orig_list)]
-        print('factors are 1 ', modified_lst)
+        # modified_lst = [x + 1 if i not in {2, 4, 5, 6, 7} else x for i, x in enumerate(orig_list)]
+   
+        key = self._obs_keys[abs(idx)]
+        modified_lst= key
         first_sample=modified_lst
         valid_traj=False #valid trajectory means that the final state mudt differ to original state by AT MOST d-1 factors (i.e. not all factors changed)
+        # print('key is here ', key)
         if idx < 0:
             while valid_traj==False:
-
+                # print('n is ', self.n)
                 door = modified_lst[3]
                 keyx = modified_lst[4]
                 keyy = modified_lst[5]
                 key_present=modified_lst[6]
                 door_open=modified_lst[7]
                 for i in range(self.n):
+                    # print('shoudlnt be here')
                     agent_x, agent_y, agent_dir = modified_lst[0], modified_lst[1], modified_lst[2]
                     new_x, new_y, new_dir = agent_x, agent_y, agent_dir
                     
@@ -223,7 +235,7 @@ class RlUnlockData(GroundTruthData):
                     valid_traj=True
 
         #print('next step ', modified_lst,'\n')
-        print('factors are ', modified_lst)
+        # print('key at end is ', modified_lst)
         factors=tuple(modified_lst)
         obs=self._obs_dictionary[factors]
         returned_state=obs

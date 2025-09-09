@@ -42,7 +42,7 @@ from disent.model.ae import EncoderLinear
 #from _groundtruth__unlockobject import UnlockData
 
 #from _groundtruth__pair_orig import GroundTruthPairOrigSampler, RlSampler
-from disent.dataset.sampling import GroundTruthPairSampler,GroundTruthPairOrigSampler, GroundTruthPairOrigSamplerUnlock, RlSampler
+from disent.dataset.sampling import GroundTruthPairSampler,GroundTruthPairOrigSampler, GroundTruthPairOrigSamplerUnlock, RlSampler, RlSamplerFullSet
 
 import itertools
 import time
@@ -50,6 +50,10 @@ import time
 # from _groundtruth__trajectories import EpisodeData
 
 import torch.distributed as dist
+
+import disent.dataset._base
+print(disent.dataset._base.__file__)
+
 
 def is_main_process():
     return not dist.is_initialized() or dist.get_rank() == 0
@@ -65,7 +69,7 @@ def train_model(lr, batch_size, z_size, steps,beta, sampler,data,num_steps=0,):
     # data=UnlockData()
     # data=XYSingleSquareData(grid_spacing=4,n=num_steps)
     # data=XYSingleSquareData(grid_spacing=4)
-    
+   
     data=data
     print('data is ', data.name)
     dataset = DisentDataset(dataset=data, sampler=sampler, transform=ToImgTensorF32())
@@ -156,16 +160,16 @@ def write_metrics(metric,lr,batch_size,z_size,steps,description):
 
 
 if __name__ == '__main__':
-    batch_size = 4
+    batch_size = 150
     lr = 0.0001
-    z_size = 20
-    max_steps = 60000
-    beta = 0.00316 
+    z_size = 90
+    max_steps = 120000
+    beta = 0.001 
 
     steps=[0,1,20,40,60,80,100,110]
     for i in steps:
         data=RlUnlockData(n=i)
-        metrics = train_model(lr=lr, batch_size=batch_size, z_size=z_size, steps=max_steps,beta=beta,sampler=RlSampler(),data=data,num_steps=i)
+        metrics = train_model(lr=lr, batch_size=batch_size, z_size=z_size, steps=max_steps,beta=beta,sampler=RlSamplerFullSet(),data=data,num_steps=i)
         write_metrics(metrics, lr=lr, batch_size=batch_size, z_size=z_size, steps=max_steps, description=f'unlock data 8 factors, rl sampler, steps={i}, beta={beta}')
     data=UnlockData()
     metrics = train_model(lr=lr, batch_size=batch_size, z_size=z_size, steps=max_steps,beta=beta,sampler=GroundTruthPairOrigSamplerUnlock(),data=data,num_steps=0)

@@ -32,7 +32,8 @@ import numpy as np
 
 from disent.util.iters import LengthIter
 from disent.util.visualize.vis_util import get_idx_traversal
-
+import os
+import pickle
 # ========================================================================= #
 # Types                                                                     #
 # ========================================================================= #
@@ -56,6 +57,13 @@ class StateSpace(LengthIter):
 
     def __init__(self, factor_sizes: Sequence[int], factor_names: Optional[Sequence[str]] = None):
         super().__init__()
+        file_dir = os.path.dirname(__file__)
+        file_path=os.path.join(file_dir, "full_feature_set.pkl")
+        print(file_path)
+        with open(file_path, "rb") as f:
+            image_store = pickle.load(f)
+        self._obs_dictionary= image_store
+        self._obs_keys = list(self._obs_dictionary.keys())
         # dimension: [read only]
         self.__factor_sizes = np.array(factor_sizes)
         self.__factor_sizes.flags.writeable = False
@@ -237,6 +245,39 @@ class StateSpace(LengthIter):
 
             return factors
 
+    def sample_fullSet_factors(self, size=None, f_idxs: Optional[NonNormalisedFactorIdxs] = None) -> np.ndarray:
+        """
+        sample randomly from all factors, otherwise the given factor_indices.
+        returned values must appear in the same order as factor_indices.
+
+        If factor factor_indices is None, all factors are sampled.
+        If size=None then the array returned is the same shape as (len(factor_indices),) or factor_sizes[factor_indices]
+        If size is an integer or shape, the samples returned are that shape with the last dimension
+            the same size as factor_indices, ie (*size, len(factor_indices))
+        """
+        # get factor sizes
+        if f_idxs is None:
+            f_sizes = self.__factor_sizes
+        else:
+            f_sizes = self.__factor_sizes[self.normalise_factor_idxs(f_idxs)]  # this may be quite slow, add caching?
+        # get resample size
+        num_samples=size
+        if size is not None:
+            # empty np.array(()) gets dtype float which is incompatible with len
+            size = np.append(np.array(size, dtype=int), len(f_sizes))
+            
+        
+        # factors=np.random.randint(0, 8192, size=size)
+        factors = np.empty((num_samples, len(f_sizes)), dtype=int)
+        for i in range(num_samples):
+            index=np.random.randint(0, 8192)
+            # factor=self._obs_keys[index]
+            # print('factor is ', factor)
+            factors[i]=np.array(index)
+
+
+        return factors
+  
 
     def sample_factors(self, size=None, f_idxs: Optional[NonNormalisedFactorIdxs] = None) -> np.ndarray:
         """

@@ -36,7 +36,7 @@ from disent.model.ae import EncoderLinear, EncoderLinear1d
 # from _groundtruth__unlockobject import UnlockData
 
 #from _groundtruth__pair_orig import GroundTruthPairOrigSampler, ConsecStatesSampler
-from disent.dataset.sampling import GroundTruthPairSampler,RlSampler,GroundTruthPairOrigSampler,GroundTruthPairOrigSamplerUnlock
+from disent.dataset.sampling import GroundTruthPairSampler,RlSampler,GroundTruthPairOrigSampler,GroundTruthPairOrigSamplerUnlock,RlSamplerFullSet
 
 import itertools
 import time
@@ -173,7 +173,7 @@ def get_gif():
     # data = XYSingleSquareData(grid_spacing=4,n=0)
     data=RlUnlockData(n=3)
     # data=UnlockData()
-    dataset = DisentDataset(dataset=data, sampler=RlSampler(), transform=ToImgTensorF32())
+    dataset = DisentDataset(dataset=data, sampler=RlSamplerFullSet(), transform=ToImgTensorF32())
     dataloader = DataLoader(dataset=dataset, batch_size=10, shuffle=True, num_workers=0)
     batch = next(iter(dataloader))
 
