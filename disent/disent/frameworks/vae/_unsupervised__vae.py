@@ -35,10 +35,15 @@ import torch
 from torch.distributions import Distribution
 
 from disent.frameworks._ae_mixin import _AeAndVaeMixin
-from disent.frameworks.helper.latent_distributions import LatentDistsHandler
+from disent.frameworks.helper.latent_distributions import LatentDistsHandler, CategoricalLatentsHandler
 from disent.frameworks.helper.latent_distributions import make_latent_distribution
 from disent.frameworks.helper.util import detach_all
 from disent.util.iters import map_all
+
+from disent.frameworks._ae_mixin import _AeAndVaeMixin
+from disent.frameworks.helper.util import detach_all
+from disent.util.iters import map_all
+import torch
 
 # ========================================================================= #
 # framework_vae                                                             #
@@ -255,3 +260,38 @@ class Vae(_AeAndVaeMixin):
 # ========================================================================= #
 # END                                                                       #
 # ========================================================================= #
+
+
+
+class CategoricalVAE(_AeAndVaeMixin):
+    REQUIRED_Z_MULTIPLIER = 2
+    REQUIRED_OBS = 1
+
+    def __init__(self, model, cfg=None):
+        super().__init__(cfg=cfg)
+        self._init_ae_mixin(model)
+        self.__latents_handler = CategoricalLatentsHandler()
+
+    @property
+    def latents_handler(self):
+        return self.__latents_handler
+
+    def do_training_step(self, batch, batch_idx):
+        xs, xs_targ = self._get_xs_and_targs(batch, batch_idx)
+
+        ds_posterior, ds_prior = map_all(self.encode_dists, xs, collect_returned=True)
+        zs_sampled = tuple(d.rsample() for d in ds_posterior)
+        xs_partial_recon = map_all(self.decode_partial, detach_all(zs_sampled))
+
+        recon_loss, _ = self.compute_ave_recon_loss(xs_partial_recon, xs_targ)
+        reg_loss, _ = self.compute_ave_reg_loss(ds_posterior, ds_prior, zs_sampled)
+
+        loss = recon_loss + reg_loss
+        return loss
+
+    def encode_dists(self, x):
+        logits = self._model.encode(x, chunk=True)
+        return self.latents_handler.encoding_to_dists(logits)
+
+    def decode_partial(self, z):
+        return self._model.decode(z)

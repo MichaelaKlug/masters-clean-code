@@ -265,8 +265,45 @@ class RlSamplerFullSet(BaseDisentSampler):
         # new_idx=idx
         return (new_idx,'first'),(-1*new_idx,'second')
 
+class GroundTruthPairOrigSamplerUnlockFullSet(BaseDisentSampler):
+    
+    def uninit_copy(self) -> "GroundTruthPairOrigSamplerUnlockFullSet":
+        return GroundTruthPairOrigSamplerUnlockFullSet(p_k=self.p_k)
 
+    def __init__(
+        self,
+        # num_differing_factors
+        p_k: int = 1,
+    ):
+        """
+        Sampler that emulates choosing factors like:
+        https://github.com/google-research/disentanglement_lib/blob/master/disentanglement_lib/methods/weak/train_weak_lib.py
+        """
+        super().__init__(num_samples=2)
+        # DIFFERING FACTORS
+        self.p_k = p_k
+        # dataset variable
+        self._state_space: Optional[StateSpace] = None
+        self.count=0
+        self.total_count=0
 
+    def _init(self, dataset):
+        assert isinstance(
+            dataset, GroundTruthData
+        ), f"dataset must be an instance of {repr(GroundTruthData.__class__.__name__)}, got: {repr(dataset)}"
+        self._state_space = dataset.state_space_copy()
+
+    # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - #
+    # CORE                                                                  #
+    # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - #
+
+    def _sample_idx(self, idx):
+        f0=idx % 8192
+        f1=np.random.randint(0,8192)
+       
+        return (f0,f1)
+
+  
 def _sample_k_differing(factors, state_space: StateSpace, k=1):
     """
     Resample the factors used for the corresponding item in a pair.

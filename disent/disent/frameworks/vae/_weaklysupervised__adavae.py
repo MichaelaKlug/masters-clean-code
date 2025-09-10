@@ -30,10 +30,15 @@ from typing import Tuple
 
 import torch
 from torch.distributions import Distribution
-from torch.distributions import Normal
+from torch.distributions import Normal, Categorical
 from torch.distributions import kl_divergence
 
 from disent.frameworks.vae._unsupervised__betavae import BetaVae
+from torch import Tensor
+
+
+
+
 
 # ========================================================================= #
 # Ada-GVAE                                                                  #
@@ -378,3 +383,101 @@ class AdaGVaeMinimal(BetaVae):
 # ========================================================================= #
 # END                                                                       #
 # ========================================================================= #
+
+class AdaGVaeCategorical(BetaVae):
+    """
+    Ada-GVAE variant that uses categorical (discrete) posterior distributions
+    per latent (Gumbel-Softmax for training, Categorical objects for posterior logic).
+
+    Expects ds_posterior to be Sequence[Categorical]-like objects encoded as logits/probs
+    per latent. This class provides helper methods to compute symmetric KL between
+    categoricals and to average posteriors on shared latents.
+    """
+    def mix_logits(self, logits1, logits2, w=0.5):
+        """
+        Mix two logit vectors (logits1, logits2) in a numerically stable way.
+
+        Args:
+            logits1: Tensor of shape (..., K)
+            logits2: Tensor of shape (..., K)
+            w: Weighting scalar in [0, 1]
+
+        Returns:
+            Tensor of same shape as logits1/logits2 (..., K) representing the mixed logits
+        """
+        # 1) Convert logits to log-probabilities (log-softmax)
+        logp1 = logits1 - torch.logsumexp(logits1, dim=-1, keepdim=True)
+        logp2 = logits2 - torch.logsumexp(logits2, dim=-1, keepdim=True)
+
+        # 2) Compute weighted log-probs
+        log_w1 = torch.log(torch.tensor(w, dtype=logits1.dtype, device=logits1.device))
+        log_w2 = torch.log(torch.tensor(1.0 - w, dtype=logits2.dtype, device=logits2.device))
+
+        # 3) Stack and mix in log-space
+        stacked = torch.stack([log_w1 + logp1, log_w2 + logp2], dim=0)  # shape (2, ..., K)
+        mixed_logp = torch.logsumexp(stacked, dim=0)  # shape (..., K)
+
+        return mixed_logp  # Can be treated as mixed logits
+
+    # Code from Nathan disent library : disent/frameworks/vae/_weaklysupervised__adavae.py
+    def hook_intercept_ds(self,
+    ds_posterior: Sequence[torch.distributions.Independent], ds_prior: Sequence[torch.distributions.Independent]
+    ) -> Tuple[Sequence[torch.distributions.Independent], Sequence[torch.distributions.Independent], Dict[str, Any]]:
+        """
+        Adaptive VAE Method, putting the various components together
+            1. compute differences between representations
+            2. estimate a threshold for differences
+            3. compute a shared mask from this threshold
+            4. average together elements that are marked as shared
+
+        (x) Visual inspection against reference implementation:
+            https://github.com/google-research/disentanglement_lib (aggregate_argmax)
+        """
+        # print('CALLING HOOK')
+        # d0_posterior=ds_posterior['stoch'] #-----> make sure that post is either just the stoch or that we just take the post['stoch']
+        # d1_posterior = ds_posterior #------> this will be the post['stoch'] of the second image which will be sampled from a buffer 
+        d0_posterior, d1_posterior = ds_posterior
+        # [1] symmetric KL Divergence FROM: https://openreview.net/pdf?id=8VXvj1QNRl1
+        z_deltas = 0.5 * kl_divergence(d1_posterior, d0_posterior) + 0.5 * kl_divergence(d0_posterior, d1_posterior)
+
+        # [2] estimate threshold from deltas
+        z_deltas_min = z_deltas.min(axis=1, keepdim=True).values  # (B, 1)
+        z_deltas_max = z_deltas.max(axis=1, keepdim=True).values  # (B, 1)
+        z_thresh = 0.5 * z_deltas_min + 0.5 * z_deltas_max  # (B, 1)
+
+        # [3] shared elements that need to be averaged, computed per pair in the batch
+        share_mask = z_deltas < z_thresh  # broadcast (B, Z) and (B, 1) to get (B, Z)
+
+        # [4.a] compute average representations
+        # - this is the only difference between the Ada-ML-VAE
+        # ave_mean = 0.5 * d0_posterior.mean + 0.5 * d1_posterior.mean
+        # ave_std = (0.5 * d0_posterior.variance + 0.5 * d1_posterior.variance) ** 0.5
+        # [4] Average logits across latent groups
+        d0_logits = d0_posterior.base_dist.logits  # (B, Z, C)
+        d1_logits = d1_posterior.base_dist.logits  # (B, Z, C)
+        # ave_logits = 0.5 * d0_logits + 0.5 * d1_logits  # (B, Z, C)
+        ave_logits = self.mix_logits(d0_logits, d1_logits)
+        #distribution= softmax(mixture_logits)
+
+        # Now each [B, T] element is broadcast across all 32 slots and 32 categories, exactly as intended.
+        share_mask_expanded = share_mask.unsqueeze(-1).expand_as(d0_logits)
+        
+        # [4.b] select shared or original values based on mask
+        # z0_mean = torch.where(share_mask, ave_mean, d0_posterior.loc)
+        # z1_mean = torch.where(share_mask, ave_mean, d1_posterior.loc)
+        # z0_std = torch.where(share_mask, ave_std, d0_posterior.scale)
+        # z1_std = torch.where(share_mask, ave_std, d1_posterior.scale)
+        z0_logits = torch.where(share_mask_expanded, ave_logits, d0_logits)
+        z1_logits = torch.where(share_mask_expanded, ave_logits, d1_logits)
+
+        # construct distributions
+        # ave_d0_posterior = Normal(loc=z0_mean, scale=z0_std)
+        # ave_d1_posterior = Normal(loc=z1_mean, scale=z1_std)
+        # new_ds_posterior = (ave_d0_posterior, ave_d1_posterior)
+        new_d0 = torch.distributions.Independent(torch.distributions.Categorical(logits=z0_logits), 1)
+        new_d1 = torch.distributions.Independent(torch.distributions.Categorical(logits=z1_logits), 1)
+        new_ds_posterior = (new_d0, new_d1)
+
+        
+        # [done] return new args & generate logs
+        return new_ds_posterior, ds_prior, {"shared": share_mask.sum(dim=1).float().mean()}

@@ -150,6 +150,7 @@ class UnlockData(GroundTruthData):
         with open(file_path, "rb") as f:
             image_store = pickle.load(f)
         self._obs_dictionary= image_store
+        self._obs_keys = list(self._obs_dictionary.keys())
 
         super().__init__(transform=transform)
         self.indices=[]
@@ -159,20 +160,19 @@ class UnlockData(GroundTruthData):
             idx=idx[0]
         if isinstance(idx,np.ndarray):
             idx=idx[0]
-     
-        
-        orig_list=self.idx_to_pos(idx)
+
+       
+        key = self._obs_keys[abs(idx)]
+        modified_lst= key
+        # orig_list=self.idx_to_pos(idx)
         # modified_lst = [x + 1 if i != 2 else x for i, x in enumerate(orig_list)]
-        modified_lst = [x + 1 if i not in {2, 4, 5, 6, 7} else x for i, x in enumerate(orig_list)]
+        # modified_lst = [x + 1 if i not in {2, 4, 5, 6, 7} else x for i, x in enumerate(orig_list)]
 
         # key = list(self._obs_dictionary.keys())[abs(idx)] 
         # modified_lst= key
 
         # key_present = not (modified_lst[4] == 0 and modified_lst[5] == 0)
         # modified_lst.insert(-1, int(key_present))  # Insert key_present before door_open
-
-
-
         factors=tuple(modified_lst)
         obs=self._obs_dictionary[factors]
         

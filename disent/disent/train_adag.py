@@ -160,11 +160,11 @@ def write_metrics(metric,lr,batch_size,z_size,steps,description):
 
 
 if __name__ == '__main__':
-    batch_size = 150
+    batch_size = 200
     lr = 0.0001
-    z_size = 90
+    z_size = 120
     max_steps = 120000
-    beta = 0.001 
+    beta = 0.01 
 
     steps=[0,1,20,40,60,80,100,110]
     for i in steps:

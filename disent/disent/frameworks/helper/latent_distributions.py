@@ -37,6 +37,10 @@ from disent.frameworks.helper.util import compute_ave_loss
 from disent.nn.loss.kl import kl_loss
 from disent.nn.loss.reduction import loss_reduction
 
+from torch.distributions import OneHotCategorical
+import torch
+
+
 # ========================================================================= #
 # Vae Distributions                                                         #
 # TODO: this should be moved into NNs                                       #
@@ -161,6 +165,44 @@ class LatentDistsHandlerLaplace(LatentDistsHandler):
         prior = Laplace(torch.zeros_like(z_loc), torch.ones_like(z_scale))
         # return values
         return posterior, prior
+
+
+class CategoricalLatentsHandler:
+    """
+    Handles conversion between encoder logits and categorical latent distributions.
+    """
+
+    def __init__(self):
+        pass
+
+    def encoding_to_dists(self, logits: torch.Tensor):
+        """
+        Convert encoder output to posterior and prior distributions.
+        Args:
+            logits: [B, z_size, n_classes]
+        Returns:
+            posterior: OneHotCategorical posterior
+            prior: OneHotCategorical prior (uniform)
+        """
+        posterior = OneHotCategorical(logits=logits)
+        B, z_size, n_classes = logits.shape
+        prior = OneHotCategorical(logits=torch.zeros_like(logits))
+        return posterior, prior
+
+    def encoding_to_representation(self, logits: torch.Tensor):
+        """
+        Deterministic latent representation (argmax one-hot)
+        """
+        return torch.argmax(logits, dim=-1)
+    
+    def compute_ave_kl_loss(self, ds_posterior, ds_prior, zs_sampled):
+        """
+        KL loss for categorical latents
+        """
+        kl_loss = 0
+        for post, prior in zip(ds_posterior, ds_prior):
+            kl_loss += torch.distributions.kl_divergence(post, prior).mean()
+        return kl_loss
 
 
 # ========================================================================= #

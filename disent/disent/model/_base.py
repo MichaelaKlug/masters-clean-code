@@ -100,7 +100,12 @@ class DisentEncoder(DisentLatentsModule):
         # ie. the first half of z is z_mean, the second half of z is z_logvar
         z = self.encode(x)
         # checks
-        assert z.shape == (x.size(0), self.z_total)
+
+        """
+        Removing this since the assertion fails for discrete encoders
+        that output [B, z_size, n_classes] instead of [B, z_size * n_classes]
+        """
+        # assert z.shape == (x.size(0), self.z_total)
         if chunk:
             z = z.split(self.z_size, dim=-1)
             assert all(s.size(1) == self.z_size for s in z)

@@ -36,7 +36,7 @@ from disent.model.ae import EncoderLinear, EncoderLinear1d
 # from _groundtruth__unlockobject import UnlockData
 
 #from _groundtruth__pair_orig import GroundTruthPairOrigSampler, ConsecStatesSampler
-from disent.dataset.sampling import GroundTruthPairSampler,RlSampler,GroundTruthPairOrigSampler,GroundTruthPairOrigSamplerUnlock,RlSamplerFullSet
+from disent.dataset.sampling import GroundTruthPairSampler,RlSampler,GroundTruthPairOrigSampler,GroundTruthPairOrigSamplerUnlock,RlSamplerFullSet,GroundTruthPairOrigSamplerUnlockFullSet
 
 import itertools
 import time
@@ -62,8 +62,9 @@ def train_model(lr, batch_size, z_size, steps):
     #===============================================
     #   TRAINING USING NORMAL SAMPLER
     #===============================================
-    sampler=RlSampler()
-    data = XYSingleSquareData(grid_spacing=4,n=2)
+    sampler=GroundTruthPairOrigSamplerUnlockFullSet()
+    # data = XYSingleSquareData(grid_spacing=4,n=2)
+    data=UnlockData()
     dataset = DisentDataset(dataset=data, sampler=sampler, transform=ToImgTensorF32())
     dataloader = DataLoader(dataset=dataset, batch_size=batch_size, shuffle=True, num_workers=0)
 
@@ -82,11 +83,11 @@ def train_model(lr, batch_size, z_size, steps):
     # dataloader = DataLoader(dataset=dataset, batch_size=batch_size, shuffle=True, num_workers=0)
 
 
-    #data_x_shape=(3,64,64)
+    data_x_shape=(3,64,64)
     #data_x_shape=(1,32,32)
     model = AutoEncoder(
-        encoder=EncoderConv64(x_shape=data.x_shape, z_size=z_size, z_multiplier=2),
-        decoder=DecoderConv64(x_shape=data.x_shape, z_size=z_size),
+        encoder=EncoderConv64(x_shape=data_x_shape, z_size=z_size, z_multiplier=2),
+        decoder=DecoderConv64(x_shape=data_x_shape, z_size=z_size),
     )
     
     framework = AdaVae(
@@ -101,50 +102,57 @@ def train_model(lr, batch_size, z_size, steps):
         ),
     )
     
-    trainer = L.Trainer(max_steps=60000, logger=False)
+    trainer = L.Trainer(max_steps=steps, logger=False)
     trainer.fit(framework, dataloader)
+
+    get_repr = lambda x: framework.encode(x.to(framework.device))
+    metrics = {
+        **metric_dci(dataset, get_repr, num_train=1000, num_test=500, show_progress=True),
+    }
+
+    print('Metrics:', metrics)
 
     # Euclidean distances
     
-    start_points = np.array(data.start_points)
-    end_points = np.array(data.end_points)
+    # start_points = np.array(data.start_points)
+    # end_points = np.array(data.end_points)
 
-    distances = np.linalg.norm(end_points - start_points, axis=1)
+    # distances = np.linalg.norm(end_points - start_points, axis=1)
 
-    plt.hist(distances, bins=30, density=True, cmap='viridis')
-    plt.xlabel("Distance")
-    plt.ylabel("Frequency")
-    plt.title("Distribution of Distances")
-    plt.savefig('histogram.png')
-    plt.show()
+    # plt.hist(distances, bins=30, density=True, cmap='viridis')
+    # plt.xlabel("Distance")
+    # plt.ylabel("Frequency")
+    # plt.title("Distribution of Distances")
+    # plt.savefig('histogram.png')
+    # plt.show()
 
 
 
 
     # Count frequencies
-    freq = Counter(sampler.indices)
+    # freq = Counter(sampler.indices)
 
-    # Sorted unique numbers and their frequencies
-    unique_numbers = sorted(freq.keys())
-    frequencies = [freq[num] for num in unique_numbers]
+    # # Sorted unique numbers and their frequencies
+    # unique_numbers = sorted(freq.keys())
+    # frequencies = [freq[num] for num in unique_numbers]
 
-    # Determine grid size (square grid)
-    size = math.ceil(math.sqrt(len(unique_numbers)))
+    # # Determine grid size (square grid)
+    # size = math.ceil(math.sqrt(len(unique_numbers)))
 
-    # Pad frequencies to fill the grid
-    padded_frequencies = frequencies + [0] * (size*size - len(frequencies))
-    data = np.array(padded_frequencies).reshape((size, size))
+    # # Pad frequencies to fill the grid
+    # padded_frequencies = frequencies + [0] * (size*size - len(frequencies))
+    # data = np.array(padded_frequencies).reshape((size, size))
 
-    # Plot heatmap
-    plt.figure(figsize=(8, 6))
-    sns.heatmap(data, annot=True, fmt="d", cmap='YlOrRd')
+    # # Plot heatmap
+    # plt.figure(figsize=(8, 6))
+    # sns.heatmap(data, annot=True, fmt="d", cmap='YlOrRd')
 
-    plt.title('Frequency Heatmap of Numbers')
+    # plt.title('Frequency Heatmap of Numbers')
 
-    # Save heatmap to file
-    plt.savefig('frequency_heatmap.png')
+    # # Save heatmap to file
+    # plt.savefig('frequency_heatmap.png')
 
-    plt.close()  # Close plot to free memory
+    # plt.close()  # Close plot to free memory
 
     
 def test_model():
@@ -239,8 +247,8 @@ def get_gif():
    
 # train_model(0.0001, 4, 6, 60000)
 #lr=1e-4 batch size=64 latent size=50 max steps=50 000
-# train_model(lr=0.0001, batch_size=64, z_size=50, steps=50000 )
-get_gif()
+train_model(lr=0.0001, batch_size=64, z_size=50, steps=10 )
+# get_gif()
 #test_model()
 
 

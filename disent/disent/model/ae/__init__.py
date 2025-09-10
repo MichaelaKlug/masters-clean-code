@@ -39,3 +39,6 @@ from disent.model.ae._linear import DecoderLinear
 from disent.model.ae._linear import EncoderLinear
 from disent.model.ae._1d_linear import DecoderLinear1d
 from disent.model.ae._1d_linear import EncoderLinear1d
+
+from disent.model.ae._vae_disc_conv64 import EncoderConv64Categorical
+from disent.model.ae._vae_disc_conv64 import DecoderConv64Categorical
