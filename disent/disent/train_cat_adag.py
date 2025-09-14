@@ -28,7 +28,7 @@ from disent.dataset.data import XYObjectData, UnlockData, UnlockDataDV3,RlUnlock
 
 #from disent.dataset.sampling import SingleSampler,GroundTruthPairOrigSampler
 from disent.dataset.transform import ToImgTensorF32
-from disent.frameworks.vae import BetaVae, AdaVae, AdaGVaeCategorical
+from disent.frameworks.vae import BetaVae, AdaVae, CategoricalVAE
 from disent.metrics import metric_dci
 from disent.metrics import metric_mig
 from disent.model import AutoEncoder
@@ -58,29 +58,34 @@ print(disent.dataset._base.__file__)
 def is_main_process():
     return not dist.is_initialized() or dist.get_rank() == 0
 
-def train_model(lr, batch_size, z_size, steps,beta, sampler,data,num_steps=0,):
+def train_model(lr, batch_size, z_size, steps,beta, sampler,data,num_classes,num_steps=0):
     print(f"Training with lr={lr}, batch_size={batch_size}, z_size={z_size}, steps={steps}")
     start_time = time.time()
-
-   
-   
     data=data
     print('data is ', data.name)
     dataset = DisentDataset(dataset=data, sampler=sampler, transform=ToImgTensorF32())
     dataloader = DataLoader(dataset=dataset, batch_size=batch_size, shuffle=True, num_workers=0)
 
 
-    data_x_shape=(3,64,64)
-    #data_x_shape=(1,32,32)
+    # data_x_shape=(3,64,64)
+
+    """
+    In Gaussian VAEs, z_multiplier=2 accounts for (mu, logvar).
+    In categorical VAEs, you don't need that — you only want z_size * n_classes.
+    Encoder sets z_multiplier=1.
+    Decoder's z_multiplier=n_classes.
+    That way, DisentDecoder sees the right input size
+    """
+
     model = AutoEncoder(
-        encoder=EncoderConv64Categorical(x_shape=data.x_shape, z_size=z_size, z_multiplier=2, n_classes=10),
-        decoder=DecoderConv64Categorical(base_decoder=DecoderConv64(x_shape=data.x_shape, z_size=z_size ), z_size=z_size,x_shape=data.x_shape,n_classes=10 ),
+        encoder=EncoderConv64Categorical(x_shape=data.x_shape, z_size=z_size, z_multiplier=1, n_classes=num_classes, latent_distribution='categorical' ),
+        decoder=DecoderConv64Categorical(base_decoder=DecoderConv64(x_shape=data.x_shape, z_size=z_size*num_classes ), z_size=z_size,x_shape=data.x_shape,n_classes=num_classes ),
     )
 
   
-    framework = AdaGVaeCategorical(
+    framework = CategoricalVAE(
         model=model,
-        cfg=AdaVae.cfg(
+        cfg=CategoricalVAE.cfg(
             optimizer="adam",
             optimizer_kwargs=dict(lr=lr),
             loss_reduction="mean_sum",
@@ -102,7 +107,19 @@ def train_model(lr, batch_size, z_size, steps,beta, sampler,data,num_steps=0,):
     # trainer.save_checkpoint(model_path)
     end_time = time.time()  # ⏱️ End timing
     elapsed_time = end_time - start_time
-    get_repr = lambda x: framework.encode(x.to(framework.device))
+    # get_repr = lambda x: framework.encode(x.to(framework.device))
+    def get_repr(x):
+        """
+        Encode input `x` into its representation using the framework encoder.
+        
+        Args:
+            x (torch.Tensor): Input tensor.
+        
+        Returns:
+            torch.Tensor: Encoded representation of `x`.
+        """
+        return framework.encode(x.to(framework.device))
+
     metrics = {
         **metric_dci(dataset, get_repr, num_train=1000, num_test=500, show_progress=True),
     }
@@ -140,12 +157,12 @@ def write_metrics(metric,lr,batch_size,z_size,steps,description):
 
 
 if __name__ == '__main__':
-    batch_size = 9
+    batch_size = 4
     lr = 0.0001
     z_size = 6
-    max_steps = 100
-    beta = 0.001 
-    num_classes=10
+    max_steps = 60000
+    beta = 0.0001 
+    num_classes=6
 
     # steps=[0,1,20,40,60,80,100,110]
     # for i in steps:
@@ -153,12 +170,12 @@ if __name__ == '__main__':
     #     metrics = train_model(lr=lr, batch_size=batch_size, z_size=z_size, steps=max_steps,beta=beta,sampler=RlSamplerFullSet(),data=data,num_steps=i)
     #     write_metrics(metrics, lr=lr, batch_size=batch_size, z_size=z_size, steps=max_steps, description=f'unlock data 8 factors, rl sampler, steps={i}, beta={beta}')
     data=XYSingleSquareData(grid_spacing=4,n=0)
-    metrics = train_model(lr=lr, batch_size=batch_size, z_size=z_size, steps=max_steps,beta=beta,sampler=GroundTruthPairOrigSampler(),data=data,num_steps=0)
+    metrics = train_model(lr=lr, batch_size=batch_size, z_size=z_size, steps=max_steps,beta=beta,sampler=GroundTruthPairOrigSampler(),data=data,num_classes=num_classes,num_steps=0)
     write_metrics(metrics, lr=lr, batch_size=batch_size, z_size=z_size, steps=max_steps, description=f'xy square, grid spacing=4, cat latents,num classes={num_classes}, beta={beta}')
     # metrics = train_model(lr=0.0001, batch_size=64, z_size=20, steps=60000,beta=0.001,num_steps=0)
     # write_metrics(metrics, lr=0.0001, batch_size=64, z_size=20, steps=60000, description=f'unlock data, orig sampler, beta=0.001')
 
-    
+#0.0001,4,6, ,57600,"xy single square, orig sampler, mimic orig data beta=0.01" 
 
 """
 number: 54

@@ -187,9 +187,12 @@ class RlUnlockData(GroundTruthData):
         # modified_lst = [x + 1 if i != 2 else x for i, x in enumerate(orig_list)]
         # modified_lst = [x + 1 if i not in {2, 4, 5, 6, 7} else x for i, x in enumerate(orig_list)]
    
-        key = self._obs_keys[abs(idx)]
-        modified_lst= key
+        # key = self._obs_keys[abs(idx)]
+        # modified_lst= key
+        modified_lst=(4,3,0,3,1,1,1,1)
         first_sample=modified_lst
+        
+
         valid_traj=False #valid trajectory means that the final state mudt differ to original state by AT MOST d-1 factors (i.e. not all factors changed)
         # print('key is here ', key)
         if idx < 0:
@@ -208,26 +211,41 @@ class RlUnlockData(GroundTruthData):
                     possible_moves=[0,1]
                     if agent_dir == 0:
                         if (agent_x+1)<=4 and not((agent_x+1)==keyx and agent_y==keyy):
-                            possible_moves.append((2,agent_x+1,agent_y))
+                            possible_moves.append(('move',agent_x+1,agent_y))
                     elif agent_dir == 1:
                         if (agent_y+1)<=4 and not((agent_y+1)==keyy and agent_x==keyx):
-                            possible_moves.append((2,agent_x,agent_y+1))
+                            possible_moves.append(('move',agent_x,agent_y+1))
                     elif agent_dir == 2:
                         if (agent_x-1)>0 and not((agent_x-1)==keyx and agent_y==keyy):
-                            possible_moves.append((2,agent_x-1,agent_y))
+                            possible_moves.append(('move',agent_x-1,agent_y))
                     elif agent_dir == 3:
                         if (agent_y-1)>0 and not((agent_y-1)==keyy and agent_x==keyx):
-                            possible_moves.append((2,agent_x,agent_y-1))
+                            possible_moves.append(('move',agent_x,agent_y-1))
                     # Randomly choose action: 0 = left turn, 1 = right turn, 2 = move forward
+                    if self.can_pickup(agent_dir,(agent_x,agent_y),(keyx,keyy)) and key_present==1:
+                        possible_moves.append('pick') #3=pick up key
+                    if self.can_toggle(agent_dir,(agent_x,agent_y),(5,door),key_present):
+                        possible_moves.append('toggle') #4=toggle door (open/close/unlock)
+
+                    print('possible moves are ', possible_moves)
                     choice = random.choice(possible_moves)
-                    #print('choice is ', choice)
+                    print('choice is ', choice)
                     if choice == 0:
                         new_dir = (agent_dir - 1) % 4
                     elif choice == 1:
                         new_dir = (agent_dir + 1) % 4
-                    else:
+                    elif choice[0] == 'move':
                         new_x=choice[1]
                         new_y=choice[2]
+                    elif choice == 'pick':
+                        key_present=0
+                        keyx=0
+                        keyy=0
+                    elif choice == 'toggle':
+                        if door_open==0:
+                            door_open=1
+                        else:
+                            door_open=0
                     # modified_lst=(new_x,new_y,new_dir,door,keyx,keyy)
                     # modified_lst = (new_x,new_y,new_dir,door,keyx,keyy,key_present,door_open)
                     modified_lst = (new_x,new_y,new_dir,door,keyx,keyy,key_present,door_open)
@@ -245,6 +263,45 @@ class RlUnlockData(GroundTruthData):
 
     
         return returned_state
+
+    def can_pickup(self,agent_dir,agent_pos, key_pos):
+        """
+        Returns True if the agent can successfully pick up an object right now.
+        """
+        # Get agent position and facing vector
+        DIR_TO_VEC = {
+            0: (1, 0),   # right / east
+            1: (0, 1),   # down / south
+            2: (-1, 0),  # left / west
+            3: (0, -1),  # up / north
+        }
+        
+        dx, dy = DIR_TO_VEC[agent_dir]
+        front_cell = (agent_pos[0] + dx, agent_pos[1] + dy)
+        if front_cell[0]==key_pos[0] and front_cell[1]==key_pos[1]:
+            return True
+        return False
+
+
+    def can_toggle(self,agent_dir, agent_pos, door_pos,key_present):
+        """
+        Returns True if the agent can successfully toggle (open/close/unlock) an object right now.
+        """
+        DIR_TO_VEC = {
+            0: (1, 0),   # right / east
+            1: (0, 1),   # down / south
+            2: (-1, 0),  # left / west
+            3: (0, -1),  # up / north
+        }
+    
+        dx, dy = DIR_TO_VEC[agent_dir]
+        front_cell = (agent_pos[0] + dx, agent_pos[1] + dy)
+        if key_present==0:
+            if front_cell[0]==door_pos[0] and front_cell[1]==door_pos[1]:
+                return True
+            
+
+        return False
 
 
 

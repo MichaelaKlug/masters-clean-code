@@ -96,9 +96,14 @@ class _AeAndVaeMixin(DisentFramework):
         assert isinstance(
             self._model, AutoEncoder
         ), f"model must be an instance of {AutoEncoder.__name__}, got: {type(model)}"
-        assert (
-            self._model.z_multiplier == self.REQUIRED_Z_MULTIPLIER
-        ), f"model z_multiplier is {repr(self._model.z_multiplier)} but {self.__class__.__name__} requires that it is: {repr(self.REQUIRED_Z_MULTIPLIER)}"
+        """
+        removing this assertion because of categorical vae where z_multiplier=1 for encoder and n_classes for decoder
+        """
+        # assert (
+        #     self._model.z_multiplier == self.REQUIRED_Z_MULTIPLIER
+        # ), f"model z_multiplier is {repr(self._model.z_multiplier)} but {self.__class__.__name__} requires that it is: {repr(self.REQUIRED_Z_MULTIPLIER)}"
+        
+        
         # recon loss & activation fn
         self.__recon_handler: ReconLossHandler = make_reconstruction_loss(
             self.cfg.recon_loss, reduction=self.cfg.loss_reduction

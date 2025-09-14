@@ -179,7 +179,7 @@ def test_model():
 def get_gif():
     # Setup
     # data = XYSingleSquareData(grid_spacing=4,n=0)
-    data=RlUnlockData(n=3)
+    data=RlUnlockData(n=1)
     # data=UnlockData()
     dataset = DisentDataset(dataset=data, sampler=RlSamplerFullSet(), transform=ToImgTensorF32())
     dataloader = DataLoader(dataset=dataset, batch_size=10, shuffle=True, num_workers=0)
@@ -247,8 +247,8 @@ def get_gif():
    
 # train_model(0.0001, 4, 6, 60000)
 #lr=1e-4 batch size=64 latent size=50 max steps=50 000
-train_model(lr=0.0001, batch_size=64, z_size=50, steps=10 )
-# get_gif()
+# train_model(lr=0.0001, batch_size=64, z_size=50, steps=10 )
+get_gif()
 #test_model()
 
 

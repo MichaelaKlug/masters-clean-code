@@ -167,13 +167,18 @@ class LatentDistsHandlerLaplace(LatentDistsHandler):
         return posterior, prior
 
 
-class CategoricalLatentsHandler:
+class CategoricalLatentsHandler(LatentDistsHandler):
+    def tuple_to_grouped(self, z_tuple):
+        """
+        Convert tuple/list of per-latent OneHotCategorical to grouped [B, Z, K]
+        """
+        if isinstance(z_tuple, (list, tuple)):
+            return torch.stack([z.probs for z in z_tuple], dim=1)  # [B, Z, K]
+        else:
+            return z_tuple.probs  # single OneHotCategorical
     """
     Handles conversion between encoder logits and categorical latent distributions.
     """
-
-    def __init__(self):
-        pass
 
     def encoding_to_dists(self, logits: torch.Tensor):
         """
@@ -184,27 +189,109 @@ class CategoricalLatentsHandler:
             posterior: OneHotCategorical posterior
             prior: OneHotCategorical prior (uniform)
         """
-        posterior = OneHotCategorical(logits=logits)
-        B, z_size, n_classes = logits.shape
+        # print('logits ', len(logits), logits[0].shape)
+        # posterior = OneHotCategorical(logits=logits)
+        # B, z_size, n_classes = logits.shape
+        
+        # prior = OneHotCategorical(logits=torch.zeros_like(logits))
+        # return posterior, prior
+        """
+        Convert a tuple of per-latent logits to posterior and prior distributions.
+        Args:
+            logits: tuple of tensors, each [B, 1, n_classes]
+        Returns:
+            posterior: tuple of OneHotCategorical distributions
+            prior: tuple of OneHotCategorical distributions (uniform)
+        """
+        # posterior = tuple(OneHotCategorical(logits=l) for l in logits)
+        # prior = tuple(OneHotCategorical(logits=torch.zeros_like(l)) for l in logits)
+        posterior = OneHotCategorical(logits=logits)  # [B, Z, K]
         prior = OneHotCategorical(logits=torch.zeros_like(logits))
+
         return posterior, prior
 
-    def encoding_to_representation(self, logits: torch.Tensor):
+    def encoding_to_representation(self, z_raw):
         """
-        Deterministic latent representation (argmax one-hot)
+        Convert raw posterior distributions into discrete latent codes
+        (e.g., for evaluation metrics).
+        
+        z_raw: tuple/list of OneHotCategorical, one per latent
+        returns: Tensor of shape [B, Z] with integer codes
         """
-        return torch.argmax(logits, dim=-1)
+        if isinstance(z_raw, (tuple, list)):
+            # Stack probs along latent dimension
+            probs = self.tuple_to_grouped(z_raw)
+        elif isinstance(z_raw, torch.Tensor):
+            probs = z_raw  # single OneHotCategorical
+
+        # Take argmax over categories
+        else:
+            raise TypeError(f"Unexpected z_raw type: {type(z_raw)}")
+
+        return torch.argmax(probs, dim=-1)  # [B, Z]
+
     
+    # def compute_ave_kl_loss(self, ds_posterior, ds_prior, zs_sampled):
+    #     """
+    #     KL loss for categorical latents
+    #     """
+    #     kl_loss = 0
+    #     for post, prior in zip(ds_posterior, ds_prior):
+    #         kl_loss += torch.distributions.kl_divergence(post, prior).mean()
+    #     return kl_loss
+
+    
+
+    # def compute_ave_kl_loss(self, ds_posterior, ds_prior, zs_sampled):
+    #     """
+    #     Compute average KL divergence between posterior and prior for
+    #     categorical latents.
+
+    #     Args:
+    #         ds_posterior: tuple/list of OneHotCategorical posteriors
+    #         ds_prior: tuple/list of OneHotCategorical priors
+    #         zs_sampled: sampled latent codes (not used here, but kept for API compatibility)
+
+    #     Returns:
+    #         kl_loss: scalar tensor, mean KL across latent groups
+    #         logs: dict for logging (currently empty)
+    #     """
+    #     # Ensure we are dealing with tuples/lists of distributions
+    #     if not isinstance(ds_posterior, (list, tuple)):
+    #         ds_posterior = [ds_posterior]
+    #     if not isinstance(ds_prior, (list, tuple)):
+    #         ds_prior = [ds_prior]
+
+    #     assert len(ds_posterior) == len(ds_prior), \
+    #         f"Posterior/prior length mismatch: {len(ds_posterior)} vs {len(ds_prior)}"
+
+
+    #     # Compute KL per latent variable
+    #     kl_terms = [
+    #         torch.distributions.kl_divergence(p, q).mean()
+    #         for p, q in zip(ds_posterior, ds_prior)
+    #     ]
+
+    #     # Average across latent groups (scale-invariant wrt z_size)
+    #     kl_loss = torch.stack(kl_terms).mean()
+
+    #     return kl_loss
+
+
     def compute_ave_kl_loss(self, ds_posterior, ds_prior, zs_sampled):
         """
-        KL loss for categorical latents
+        Average KL across latents. Accepts tuple/list of OneHotCategorical.
         """
-        kl_loss = 0
-        for post, prior in zip(ds_posterior, ds_prior):
-            kl_loss += torch.distributions.kl_divergence(post, prior).mean()
-        return kl_loss
+        if not isinstance(ds_posterior, (list, tuple)):
+            ds_posterior = [ds_posterior]
+        if not isinstance(ds_prior, (list, tuple)):
+            ds_prior = [ds_prior]
 
-
+        kl_terms = [
+            torch.distributions.kl_divergence(p, q).mean()
+            for p, q in zip(ds_posterior, ds_prior)
+        ]
+        return torch.stack(kl_terms).mean()
 # ========================================================================= #
 # Factory                                                                   #
 # ========================================================================= #
@@ -214,6 +301,8 @@ def make_latent_distribution(name: str, kl_mode: str, reduction: str) -> LatentD
     cls = R.LATENT_HANDLERS[name]
     # make instance
     return cls(kl_mode=kl_mode, reduction=reduction)
+
+
 
 
 # ========================================================================= #

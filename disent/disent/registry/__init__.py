@@ -186,6 +186,8 @@ LATENT_HANDLERS: RegistryImports["disent.frameworks.helper.latent_distributions.
 )
 LATENT_HANDLERS["normal"] = LazyImport("disent.frameworks.helper.latent_distributions.LatentDistsHandlerNormal")
 LATENT_HANDLERS["laplace"] = LazyImport("disent.frameworks.helper.latent_distributions.LatentDistsHandlerLaplace")
+LATENT_HANDLERS["categorical"] = LazyImport("disent.frameworks.helper.latent_distributions.CategoricalLatentsHandler")
+
 
 
 # ========================================================================= #

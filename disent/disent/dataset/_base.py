@@ -399,7 +399,7 @@ class DisentDataset(Dataset, LengthIter):
         if 'fullset' in self._dataset.name:
             indices = np.array(factors, dtype=int)
         else:
-            indices = self.gt_data.pos_to_idx(factors)   
+            indices = self.gt_data.pos_to_idx(factors) 
         return self.dataset_batch_from_indices(indices, mode=mode, collate=collate)
     
 
@@ -412,7 +412,6 @@ class DisentDataset(Dataset, LengthIter):
             factors = self.gt_data.sample_fullSet_factors(num_samples)
         else:
             factors = self.gt_data.sample_factors(num_samples)
-        
         batch = self.dataset_batch_from_factors(factors, mode=mode, collate=collate)
         return batch, (default_collate(factors) if collate else factors)
 

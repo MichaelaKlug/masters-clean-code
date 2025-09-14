@@ -66,3 +66,12 @@ inf train,inf test,disentanglment,completenes,Learning rate,Batch size,Latent si
 1.0,0.116,0.015665229005400093,0.011082255090046442,0.0001,200,120, ,120000,"unlock data 8 factors, rl sampler, steps=0, beta=0.01"
 1.0,0.13,0.01637020913832252,0.025274119307549386,0.0001,200,120, ,120000,"unlock data 8 factors, rl sampler, steps=1, beta=0.01"
 1.0,0.134,0.014530688827189546,0.027776908969430344,0.0001,200,120, ,120000,"unlock data 8 factors, rl sampler, steps=20, beta=0.01"
+1.0,0.112,0.017564847446529024,0.029516642392198558,0.0001,200,120, ,120000,"unlock data 8 factors, rl sampler, steps=40, beta=0.01"
+0.0805,0.07100000000000001,0.0,1.1102230246251565e-16,0.0001,9,6, ,10,"xy square, grid spacing=4, cat latents,num classes=10, beta=0.001"
+0.08349999999999999,0.07899999999999999,0.0,0.999999999265291,0.0001,9,6, ,10,"xy square, grid spacing=4, cat latents,num classes=10, beta=0.001"
+
+0.08399999999999999,0.065,0.0,1.1102230246251565e-16,0.0001,9,6, ,10,"xy square, grid spacing=4, cat latents,num classes=10, beta=0.001"
+0.08,0.068,0.0,1.1102230246251565e-16,0.0001,9,6, ,10,"xy square, grid spacing=4, cat latents,num classes=10, beta=0.001"
+0.159,0.173,0.0003211281183262575,0.6132772979097505,0.0001,9,6, ,10,"xy square, grid spacing=4, cat latents,num classes=10, beta=0.001"
+0.9964999999999999,0.995,0.058423819055403156,0.025714187632476293,0.0001,4,6, ,57600,"xy square, grid spacing=4, cat latents,num classes=6, beta=0.01"
+0.9975,0.998,0.2855258793840559,0.11398309796058782,0.0001,4,6, ,60000,"xy square, grid spacing=4, cat latents,num classes=6, beta=0.001"

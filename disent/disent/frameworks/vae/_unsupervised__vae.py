@@ -44,6 +44,10 @@ from disent.frameworks._ae_mixin import _AeAndVaeMixin
 from disent.frameworks.helper.util import detach_all
 from disent.util.iters import map_all
 import torch
+import torch.nn.functional as F
+from torch.distributions import OneHotCategorical
+
+
 
 # ========================================================================= #
 # framework_vae                                                             #
@@ -95,7 +99,8 @@ class Vae(_AeAndVaeMixin):
     @dataclass
     class cfg(_AeAndVaeMixin.cfg):
         # latent distribution settings
-        latent_distribution: str = "normal"
+        # latent_distribution: str = "normal"
+        latent_distribution: str = "categorical"
         kl_loss_mode: str = "direct"
         # disable various components
         disable_reg_loss: bool = False
@@ -109,15 +114,37 @@ class Vae(_AeAndVaeMixin):
         self.__latents_handler = make_latent_distribution(
             self.cfg.latent_distribution, kl_mode=self.cfg.kl_loss_mode, reduction=self.cfg.loss_reduction
         )
+        print('self.latents_handler is ', self.latents_handler)
 
     @final
     @property
-    def latents_handler(self) -> LatentDistsHandler:
+    def latents_handler(self) -> CategoricalLatentsHandler:
         return self.__latents_handler
 
     # --------------------------------------------------------------------- #
     # VAE Training Step                                                     #
     # --------------------------------------------------------------------- #
+
+    def merge_prior_group(self, prior_group):
+        """
+        prior_group: tuple of OneHotCategorical distributions for each latent
+        returns: OneHotCategorical with shape [B, Z, K] for Ada-GVAE KL computation
+        """
+        # extract probs and ensure they are 2D per latent: [B, K]
+        probs_list = []
+        for p in prior_group:
+            # squeeze any singleton dimensions
+            prob = p.probs.squeeze()
+            # make sure prob is [B, K]
+            if prob.ndim == 1:
+                prob = prob.unsqueeze(0)
+            probs_list.append(prob)
+
+        # stack along latent dimension (Z)
+        probs = torch.stack(probs_list, dim=1)  # [B, Z, K]
+
+        return OneHotCategorical(probs=probs)
+
 
     @final
     def do_training_step(self, batch, batch_idx):
@@ -129,8 +156,20 @@ class Vae(_AeAndVaeMixin):
         ds_posterior, ds_prior = map_all(self.encode_dists, xs, collect_returned=True)
         # [HOOK] intercept latent parameterizations
         ds_posterior, ds_prior, logs_intercept_ds = self.hook_intercept_ds(ds_posterior, ds_prior)
+
         # sample from dists
-        zs_sampled = tuple(d.rsample() for d in ds_posterior)
+        # zs_sampled = tuple(d.rsample() for d in ds_posterior)
+        """
+        NEED TO TUNE VALUE OF TAU ??
+        """
+        zs_sampled = tuple(
+            F.gumbel_softmax(d.logits, tau=1.0, hard=True, dim=-1)
+            if isinstance(d, OneHotCategorical)
+            else d.rsample()
+            for d in ds_posterior
+        )
+
+
         # reconstruct without the final activation
         xs_partial_recon = map_all(self.decode_partial, detach_all(zs_sampled, if_=self.cfg.detach_decoder))
         # -~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~- #
@@ -140,6 +179,7 @@ class Vae(_AeAndVaeMixin):
         # compute all the recon losses
         recon_loss, logs_recon = self.compute_ave_recon_loss(xs_partial_recon, xs_targ)
         # compute all the regularization losses
+        # grouped_priors = tuple(self.merge_prior_group(group) for group in ds_prior)
         reg_loss, logs_reg = self.compute_ave_reg_loss(ds_posterior, ds_prior, zs_sampled)
         # [HOOK] augment loss
         aug_loss, logs_aug = self.hook_compute_ave_aug_loss(
@@ -247,6 +287,7 @@ class Vae(_AeAndVaeMixin):
     @final
     def encode_dists(self, x: torch.Tensor) -> Tuple[Distribution, Distribution]:
         """Get parametrisations of the latent distributions, which are sampled from during training."""
+         
         z_raw = self._model.encode(x, chunk=True)
         z_posterior, z_prior = self.latents_handler.encoding_to_dists(z_raw)
         return z_posterior, z_prior
@@ -254,44 +295,13 @@ class Vae(_AeAndVaeMixin):
     @final
     def decode_partial(self, z: torch.Tensor) -> torch.Tensor:
         """Decode latent vector z into partial reconstructions that exclude the final activation if there is one."""
+        if z.ndim == 3:
+            # Flatten last two dimensions: [B, 6, 10] → [B, 60]
+            z = z.reshape(z.size(0), -1)
+
         return self._model.decode(z)
 
 
 # ========================================================================= #
 # END                                                                       #
 # ========================================================================= #
-
-
-
-class CategoricalVAE(_AeAndVaeMixin):
-    REQUIRED_Z_MULTIPLIER = 2
-    REQUIRED_OBS = 1
-
-    def __init__(self, model, cfg=None):
-        super().__init__(cfg=cfg)
-        self._init_ae_mixin(model)
-        self.__latents_handler = CategoricalLatentsHandler()
-
-    @property
-    def latents_handler(self):
-        return self.__latents_handler
-
-    def do_training_step(self, batch, batch_idx):
-        xs, xs_targ = self._get_xs_and_targs(batch, batch_idx)
-
-        ds_posterior, ds_prior = map_all(self.encode_dists, xs, collect_returned=True)
-        zs_sampled = tuple(d.rsample() for d in ds_posterior)
-        xs_partial_recon = map_all(self.decode_partial, detach_all(zs_sampled))
-
-        recon_loss, _ = self.compute_ave_recon_loss(xs_partial_recon, xs_targ)
-        reg_loss, _ = self.compute_ave_reg_loss(ds_posterior, ds_prior, zs_sampled)
-
-        loss = recon_loss + reg_loss
-        return loss
-
-    def encode_dists(self, x):
-        logits = self._model.encode(x, chunk=True)
-        return self.latents_handler.encoding_to_dists(logits)
-
-    def decode_partial(self, z):
-        return self._model.decode(z)

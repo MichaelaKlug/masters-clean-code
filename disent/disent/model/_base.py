@@ -46,12 +46,13 @@ log = logging.getLogger(__name__)
 
 
 class DisentLatentsModule(DisentModule):
-    def __init__(self, x_shape=(3, 64, 64), z_size=6, z_multiplier=1):
+    def __init__(self, x_shape=(3, 64, 64), z_size=6, z_multiplier=1, latent_distribution='categorical'):
         super().__init__()
         self._x_shape = tuple(x_shape)
         self._x_size = int(np.prod(x_shape))
         self._z_size = int(z_size)
         self._z_multiplier = int(z_multiplier)
+        self.latent_distribution = latent_distribution
 
     def forward(self, *args, **kwargs):
         raise NotImplementedError
@@ -106,9 +107,16 @@ class DisentEncoder(DisentLatentsModule):
         that output [B, z_size, n_classes] instead of [B, z_size * n_classes]
         """
         # assert z.shape == (x.size(0), self.z_total)
-        if chunk:
+        if chunk and self.latent_distribution!='categorical':
             z = z.split(self.z_size, dim=-1)
             assert all(s.size(1) == self.z_size for s in z)
+        elif chunk and self.latent_distribution=='categorical':
+           
+            z = z.view(-1, self.z_size, self._n_classes)  # [B, z_size, n_classes]
+            # z = tuple(z[:, i:i+1, :] for i in range(self._z_size))  # tuple of 6 tensors [B,1,n_classes]
+            pass
+
+
         return z
 
     def encode(self, x) -> torch.Tensor:
@@ -124,8 +132,9 @@ class DisentDecoder(DisentLatentsModule):
     def forward(self, z):
         """same as self.decode but with size checks"""
         # checks
+
         assert z.ndim == 2
-        assert z.size(1) == self.z_size
+        # assert z.size(1) == self.z_size
         # decode | p(x|z)
         x_recon = self.decode(z)
         # return

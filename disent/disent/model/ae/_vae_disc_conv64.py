@@ -19,7 +19,7 @@ class EncoderConv64Categorical(DisentEncoder):
         n_classes: number of categories per latent variable.
     """
 
-    def __init__(self, x_shape=(3, 64, 64), z_size=6, z_multiplier=1,n_classes=10):
+    def __init__(self, x_shape=(3, 64, 64), z_size=6, z_multiplier=1,n_classes=10,latent_distribution='categorical'):
         (C, H, W) = x_shape
         assert (H, W) == (64, 64), "This model only works with image size 64x64."
         super().__init__(x_shape=x_shape, z_size=z_size, z_multiplier=z_multiplier)
@@ -56,9 +56,7 @@ class EncoderConv64Categorical(DisentEncoder):
         Encode input x into categorical logits of shape [B, z_size, n_classes].
         """
         h = self.features(x)
-        print('h shape:', h.shape)
         logits = self.to_logits(h)  # [B, z_size * n_classes]
-        print("logits shape:", logits.shape)
         return logits.view(-1, self._z_size, self._n_classes)
 
     def sample_gumbel_softmax(self, x: Tensor, tau: float = 1.0, hard: bool = False) -> Tensor:

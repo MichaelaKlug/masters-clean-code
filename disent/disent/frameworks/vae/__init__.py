@@ -38,4 +38,4 @@ from disent.frameworks.vae._unsupervised__dotvae import DataOverlapTripletVae
 # weakly supervised frameworks
 from disent.frameworks.vae._weaklysupervised__adavae import AdaVae
 from disent.frameworks.vae._weaklysupervised__adavae import AdaGVaeMinimal
-from disent.frameworks.vae._weaklysupervised__adavae import AdaGVaeCategorical
+from disent.frameworks.vae._weaklysupervised__adavae import CategoricalVAE
