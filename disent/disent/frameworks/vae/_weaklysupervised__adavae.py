@@ -422,14 +422,84 @@ class CategoricalVAE(BetaVae):
             d0_posterior, d1_posterior, thresh_mode=self.cfg.ada_thresh_mode, ratio=self.cfg.ada_thresh_ratio
         )
 
-
-
         new_ds_posterior = self.make_shared_posteriors(
             d0_posterior, d1_posterior, share_mask, average_mode=self.cfg.ada_average_mode
         )
 
         logs = {"shared": share_mask.sum(dim=1).float().mean()}
         return new_ds_posterior, ds_prior, logs
+    
+    def mix_logits(self,logits1, logits2, w=0.5):
+        """
+        Mix two logit vectors (logits1, logits2) in a numerically stable way.
+
+        Args:
+            logits1: Tensor of shape (..., K)
+            logits2: Tensor of shape (..., K)
+            w: Weighting scalar in [0, 1]
+
+        Returns:
+            Tensor of same shape as logits1/logits2 (..., K) representing the mixed logits
+        """
+        # 1) Convert logits to log-probabilities (log-softmax)
+        logp1 = logits1 - torch.logsumexp(logits1, dim=-1, keepdim=True)
+        logp2 = logits2 - torch.logsumexp(logits2, dim=-1, keepdim=True)
+
+        # 2) Compute weighted log-probs
+        log_w1 = torch.log(torch.tensor(w, dtype=logits1.dtype, device=logits1.device))
+        log_w2 = torch.log(torch.tensor(1.0 - w, dtype=logits2.dtype, device=logits2.device))
+
+        # 3) Stack and mix in log-space
+        stacked = torch.stack([log_w1 + logp1, log_w2 + logp2], dim=0)  # shape (2, ..., K)
+        mixed_logp = torch.logsumexp(stacked, dim=0)  # shape (..., K)
+
+        return mixed_logp  # Can be treated as mixed logits
+
+    def hook_intercept_ds_old(
+        self, ds_posterior: Sequence[OneHotCategorical], ds_prior: Sequence[OneHotCategorical]
+    ) -> Tuple[Sequence[OneHotCategorical], Sequence[OneHotCategorical], Dict[str, Any]]:
+        """
+        Adaptive VAE method with per-latent KL computation.
+        Computes a per-latent share mask and averages only latents that are sufficiently similar.
+        """
+        d0_post, d1_post = ds_posterior
+
+        B, Z, C = d1_post.logits.shape
+        # Compute per-latent symmetric KL
+        z_deltas = []
+        for i in range(Z):
+            d0_latent = OneHotCategorical(logits=d0_post.logits[:, i, :])
+            d1_latent = OneHotCategorical(logits=d1_post.logits[:, i, :])
+            kl = 0.5 * kl_divergence(d1_latent, d0_latent) + 0.5 * kl_divergence(d0_latent, d1_latent)
+            z_deltas.append(kl)
+        z_deltas = torch.stack(z_deltas, dim=1)  # shape: (B, Z)
+
+        # Adaptive threshold
+        z_thresh = 0.5 * (z_deltas.min(dim=1, keepdim=True).values +
+                        z_deltas.max(dim=1, keepdim=True).values)
+
+        # Per-latent share mask
+        share_mask = z_deltas <= z_thresh  # shape: (B, Z)
+
+        # Average logits for shared latents
+        d0_logits = d0_post.logits
+        d1_logits = d1_post.logits
+        ave_logits=self.mix_logits(d0_logits, d1_logits)
+
+        # Broadcast mask to match logits shape (B, Z, C)
+        share_mask_expanded = share_mask.unsqueeze(-1).expand_as(d0_logits)
+
+        # Select per-latent logits
+        z0_logits = torch.where(share_mask_expanded, ave_logits, d0_logits)
+        z1_logits = torch.where(share_mask_expanded, ave_logits, d1_logits)
+
+        # return new_d0, new_d1
+        new_d0 = OneHotCategorical(logits=z0_logits)
+        new_d1 = OneHotCategorical(logits=z1_logits)
+        new_ds_posterior = (new_d0, new_d1)
+
+        return new_ds_posterior, ds_prior, {}
+
 
     # ==========================================================
     # Delta computation (differences between distributions)

@@ -75,3 +75,7 @@ inf train,inf test,disentanglment,completenes,Learning rate,Batch size,Latent si
 0.159,0.173,0.0003211281183262575,0.6132772979097505,0.0001,9,6, ,10,"xy square, grid spacing=4, cat latents,num classes=10, beta=0.001"
 0.9964999999999999,0.995,0.058423819055403156,0.025714187632476293,0.0001,4,6, ,57600,"xy square, grid spacing=4, cat latents,num classes=6, beta=0.01"
 0.9975,0.998,0.2855258793840559,0.11398309796058782,0.0001,4,6, ,60000,"xy square, grid spacing=4, cat latents,num classes=6, beta=0.001"
+0.995,0.984,0.32473171193689937,0.13932455398652305,0.0001,4,6, ,60000,"xy square, grid spacing=4, cat latents,num classes=6, beta=0.0001"
+1.0,1.0,0.25402884593565295,0.10209652871611646,0.0001,63,8, ,60000,"xy square, grid spacing=4, cat latents, mix logits, num classes=15, beta=1.0"
+1.0,0.994,0.3185552624090617,0.12465786166202021,0.0001,63,8, ,60000,"xy square, grid spacing=4, cat latents, chatgpt, num classes=15, beta=1.0"
+

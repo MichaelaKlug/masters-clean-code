@@ -13,6 +13,7 @@ import tools
 from torch.distributions import Distribution
 from torch.distributions import Normal
 from torch.distributions import kl_divergence
+from torch.distributions import OneHotCategorical
 from dataclasses import dataclass
 from typing import Any
 from typing import Dict
@@ -358,7 +359,7 @@ class RSSM(nn.Module):
         return mixed_logp  # Can be treated as mixed logits
 
     # Code from Nathan disent library : disent/frameworks/vae/_weaklysupervised__adavae.py
-    def hook_intercept_ds(
+    def hook_intercept_ds_old(
     self, ds_posterior: Sequence[torch.distributions.Independent]
 ) -> Sequence[torch.distributions.Independent]:
         """
@@ -375,13 +376,21 @@ class RSSM(nn.Module):
         # d0_posterior=ds_posterior['stoch'] #-----> make sure that post is either just the stoch or that we just take the post['stoch']
         # d1_posterior = ds_posterior #------> this will be the post['stoch'] of the second image which will be sampled from a buffer 
         d0_posterior, d1_posterior = ds_posterior
+
+        #Try making the 2 distributions the same and then all should have same mask 
+        # d1_posterior = d0_posterior
+        
         # [1] symmetric KL Divergence FROM: https://openreview.net/pdf?id=8VXvj1QNRl1
         z_deltas = 0.5 * kl_divergence(d1_posterior, d0_posterior) + 0.5 * kl_divergence(d0_posterior, d1_posterior)
+        with open('deltas.txt', "a", encoding="utf-8") as f:
+            f.write(f"d0 posterior is: {d0_posterior}\n")
 
         # [2] estimate threshold from deltas
         z_deltas_min = z_deltas.min(axis=1, keepdim=True).values  # (B, 1)
         z_deltas_max = z_deltas.max(axis=1, keepdim=True).values  # (B, 1)
         z_thresh = 0.5 * z_deltas_min + 0.5 * z_deltas_max  # (B, 1)
+        # with open('deltas.txt', "a", encoding="utf-8") as f:
+        #     f.write(f"Threshold is: {z_thresh}\n")
 
         # [3] shared elements that need to be averaged, computed per pair in the batch
         #this is the correct behaviour
@@ -389,6 +398,8 @@ class RSSM(nn.Module):
         
         #we want to see what happens if we use opposite behaviour.
         share_mask = z_deltas >= z_thresh
+        # with open('deltas.txt', "a", encoding="utf-8") as f:
+        #     f.write(f"share mask is: {share_mask}\n")
 
         # [4.a] compute average representations
         # - this is the only difference between the Ada-ML-VAE
@@ -430,11 +441,67 @@ class RSSM(nn.Module):
 
      
        
-        with open('posteriors_adversarial.txt', "a", encoding="utf-8") as f:
-            f.write(f"posterior 0 and 1 before: {d0_posterior.base_dist.logits} {d1_posterior.base_dist.logits}\n")
-            f.write(f"posterior 0 and 1 after: {new_d0.base_dist.logits} {new_d1.base_dist.logits}\n")
+        
 
         # [done] return new args & generate logs
+        return new_ds_posterior
+
+
+
+    import torch
+    from torch.distributions import OneHotCategorical, Independent, kl_divergence
+    from typing import Sequence
+
+    def hook_intercept_ds(self,ds_posterior: Sequence[Independent]) -> Sequence[Independent]:
+        """
+        Adaptive VAE hook for logits of shape [batch_size, batch_length, classes, categories].
+        Computes per-latent symmetric KL, generates a share mask, and averages shared latents.
+        """
+        d0_post, d1_post = ds_posterior
+
+        # Unwrap base distributions
+        d0_base = d0_post.base_dist
+        d1_base = d1_post.base_dist
+
+        B, L, cls, C = d0_base.logits.shape  # batch_size, latent positions, classes, categories
+
+        # Compute per-latent symmetric KL
+        z_deltas = []
+        for i in range(L):  # loop over latent positions
+            d0_latent = OneHotCategorical(logits=d0_base.logits[:, i, :, :])
+            d1_latent = OneHotCategorical(logits=d1_base.logits[:, i, :, :])
+            kl = 0.5 * kl_divergence(d1_latent, d0_latent) + 0.5 * kl_divergence(d0_latent, d1_latent)
+            # kl shape: (B, cls)
+            # Reduce over classes to get scalar per latent
+            kl_mean = kl.mean(dim=1)  # shape: (B,)
+            z_deltas.append(kl_mean)
+        
+        z_deltas = torch.stack(z_deltas, dim=1)  # shape: (B, L)
+
+        # Compute adaptive threshold per batch
+        z_thresh = 0.5 * (z_deltas.min(dim=1, keepdim=True).values +
+                        z_deltas.max(dim=1, keepdim=True).values)
+
+        # Per-latent share mask
+        share_mask = z_deltas <= z_thresh  # shape: (B, L)
+
+        # Average logits for shared latents
+        d0_logits = d0_base.logits
+        d1_logits = d1_base.logits
+        ave_logits = 0.5 * d0_logits + 0.5 * d1_logits  # or mix_logits(d0_logits, d1_logits)
+
+        # Broadcast mask to match logits shape
+        share_mask_expanded = share_mask[:, :, None, None].expand_as(d0_logits)  # (B, L, cls, C)
+
+        # Select logits
+        z0_logits = torch.where(share_mask_expanded, ave_logits, d0_logits)
+        z1_logits = torch.where(share_mask_expanded, ave_logits, d1_logits)
+
+        # Wrap back as Independent distributions
+        new_d0 = self.get_dist({"logit": z0_logits})
+        new_d1 = self.get_dist({"logit": z1_logits})
+        new_ds_posterior = (new_d0, new_d1)
+
         return new_ds_posterior
 
 class MultiEncoder(nn.Module):

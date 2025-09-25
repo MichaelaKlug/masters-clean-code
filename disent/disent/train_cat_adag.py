@@ -157,12 +157,23 @@ def write_metrics(metric,lr,batch_size,z_size,steps,description):
 
 
 if __name__ == '__main__':
-    batch_size = 4
+    """
+    value = 0.8688649112697717
+    datetime_start = 2025-09-15 21:24:20.816683
+    datetime_complete = 2025-09-15 22:07:41.476868
+    duration = 0 days 00:43:20.660185
+    batch_size = 63
+    beta = 1.0
+    latent_size = 8
+    cat_size = 15
+    state = COMPLETE
+    """
+    batch_size = 63
     lr = 0.0001
-    z_size = 6
+    z_size = 8
     max_steps = 60000
-    beta = 0.0001 
-    num_classes=6
+    beta =1.0 
+    num_classes=15
 
     # steps=[0,1,20,40,60,80,100,110]
     # for i in steps:
@@ -171,7 +182,7 @@ if __name__ == '__main__':
     #     write_metrics(metrics, lr=lr, batch_size=batch_size, z_size=z_size, steps=max_steps, description=f'unlock data 8 factors, rl sampler, steps={i}, beta={beta}')
     data=XYSingleSquareData(grid_spacing=4,n=0)
     metrics = train_model(lr=lr, batch_size=batch_size, z_size=z_size, steps=max_steps,beta=beta,sampler=GroundTruthPairOrigSampler(),data=data,num_classes=num_classes,num_steps=0)
-    write_metrics(metrics, lr=lr, batch_size=batch_size, z_size=z_size, steps=max_steps, description=f'xy square, grid spacing=4, cat latents,num classes={num_classes}, beta={beta}')
+    write_metrics(metrics, lr=lr, batch_size=batch_size, z_size=z_size, steps=max_steps, description=f'xy square, grid spacing=4, cat latents, mix logits, num classes={num_classes}, beta={beta}')
     # metrics = train_model(lr=0.0001, batch_size=64, z_size=20, steps=60000,beta=0.001,num_steps=0)
     # write_metrics(metrics, lr=0.0001, batch_size=64, z_size=20, steps=60000, description=f'unlock data, orig sampler, beta=0.001')
 
